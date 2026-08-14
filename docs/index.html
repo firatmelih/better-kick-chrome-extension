@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Better Kick</title>
+<meta name="description" content="Kick.com chat, stripped down to username: text. No emotes, no badges, no sub spam — plus a log of every deleted message.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%239147ff'/></svg>">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --panel: #18181b;
+    --line: #2a2a2e;
+    --text: #e4e4e7;
+    --muted: #a1a1aa;
+    --accent: #9147ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 4rem 1.25rem 5rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  a { color: var(--accent); }
+  h1 {
+    font-size: clamp(2rem, 7vw, 3rem);
+    margin: 0 0 .5rem;
+    letter-spacing: -.03em;
+  }
+  .tag { color: var(--muted); font-size: 1.0625rem; margin: 0 0 2rem; }
+  .tag code {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .1em .4em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .9em;
+    color: var(--text);
+  }
+  .shot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin: 0 0 2.5rem;
+  }
+  ul.features { list-style: none; padding: 0; margin: 0 0 2.5rem; }
+  ul.features li {
+    padding: .625rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  ul.features li:last-child { border-bottom: 0; }
+  ul.features strong { color: #fff; }
+  .links { display: flex; flex-wrap: wrap; gap: .75rem; margin-bottom: 3rem; }
+  .btn {
+    display: inline-block;
+    padding: .625rem 1.125rem;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    text-decoration: none;
+    font-size: .9375rem;
+  }
+  .btn:hover { border-color: var(--accent); color: #fff; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #a970ff; border-color: #a970ff; }
+  footer {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: .875rem;
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Better Kick</h1>
+  <p class="tag">Kick.com chat, stripped down to <code>username: text</code>.</p>
+
+  <img class="shot" src="images/chat-before-after.png"
+       alt="The same forty seconds of Kick chat, with and without Better Kick. On the left, emotes, badges, sub events and copypasta crowd out roughly four real sentences. On the right, fifteen plain-text messages fit in the same space.">
+
+  <ul class="features">
+    <li><strong>Plain-text chat</strong> — emotes, emoji, badges, avatars, gifs, stickers and link previews all go.</li>
+    <li><strong>No sub spam</strong> — subscriptions, gift subs, Kicks, the top-gifter marquee, pinned banners and polls.</li>
+    <li><strong>Deleted-message log</strong> — every message a moderator removed, kept and readable.</li>
+    <li><strong>Copypasta filter</strong> — once a line has been posted ten times in ten minutes, later copies stop appearing.</li>
+    <li><strong>Purple theme</strong> — Kick's green becomes <code>#9147FF</code>, wordmark and favicon included.</li>
+    <li><strong>Locked to 1080p</strong> — the player holds quality across reloads, channel changes and stream restarts.</li>
+  </ul>
+
+  <div class="links">
+    <a class="btn primary" href="https://github.com/firatmelih/better-kick-chrome-extension">Source on GitHub</a>
+    <a class="btn" href="https://github.com/firatmelih/better-kick-chrome-extension/releases/latest">Download</a>
+    <a class="btn" href="privacy.html">Privacy policy</a>
+  </div>
+
+  <footer>
+    Open source, no data collected — see the <a href="privacy.html">privacy policy</a>.
+    Better Kick is an independent project and is not affiliated with, endorsed by, or
+    connected to Kick.com.
+  </footer>
+</main>
+</body>
+</html>

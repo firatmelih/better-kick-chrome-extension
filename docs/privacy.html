@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Better Kick</title>
+<meta name="description" content="Privacy policy for the Better Kick browser extension. Better Kick collects no data.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%239147ff'/></svg>">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --panel: #18181b;
+    --line: #2a2a2e;
+    --text: #e4e4e7;
+    --muted: #a1a1aa;
+    --accent: #9147ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 5rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  a { color: var(--accent); }
+  a:hover { color: #a970ff; }
+  .back {
+    display: inline-block;
+    margin-bottom: 2rem;
+    font-size: .875rem;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .back:hover { color: var(--accent); }
+  h1 {
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
+    line-height: 1.2;
+    margin: 0 0 .5rem;
+    letter-spacing: -.02em;
+  }
+  .updated { color: var(--muted); font-size: .875rem; margin: 0 0 2.5rem; }
+  h2 {
+    font-size: 1.15rem;
+    margin: 2.75rem 0 .75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--line);
+    letter-spacing: -.01em;
+  }
+  h2:first-of-type { border-top: 0; padding-top: 0; }
+  p, li { color: var(--text); }
+  ul { padding-left: 1.25rem; }
+  li { margin-bottom: .5rem; }
+  code {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: .1em .4em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .875em;
+  }
+  .lede {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin: 0 0 2.5rem;
+  }
+  .lede p { margin: 0; }
+  .lede strong { color: #fff; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: .9375rem;
+  }
+  th, td {
+    text-align: left;
+    padding: .625rem .75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 600; font-size: .8125rem; text-transform: uppercase; letter-spacing: .04em; }
+  .wrap { overflow-x: auto; }
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: .875rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="./">&larr; Better Kick</a>
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Better Kick browser extension · Last updated 14 August 2026</p>
+
+  <div class="lede">
+    <p><strong>Better Kick collects no data.</strong> It has no servers, no analytics, no
+    tracking and no accounts. Nothing you see, type or watch on Kick is recorded,
+    transmitted or shared with anyone, including the developer.</p>
+  </div>
+
+  <h2>What the extension does</h2>
+  <p>Better Kick changes how <a href="https://kick.com" rel="noopener">kick.com</a> looks in
+  your own browser: it strips chat down to plain text, hides subscription and gift
+  announcements, keeps a readable log of deleted messages, applies a purple theme and locks
+  the video player to 1080p. All of this happens locally, on the page already loaded in your
+  browser.</p>
+
+  <h2>Information the extension stores</h2>
+  <p>Everything below is stored by your browser on your own device. None of it is sent
+  anywhere.</p>
+  <div class="wrap">
+  <table>
+    <thead>
+      <tr><th>What</th><th>Where</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Your feature toggles (plain chat, purple theme, force 1080p, and so on) — a list of on/off values</td>
+        <td><code>chrome.storage.sync</code></td>
+        <td>So the popup remembers your settings between sessions</td>
+      </tr>
+      <tr>
+        <td>Your pinned video quality</td>
+        <td>Local storage on kick.com</td>
+        <td>So the player returns to 1080p after reloads and channel changes</td>
+      </tr>
+      <tr>
+        <td>Your Browse-page filters and collapsed sidebar / chat panel state</td>
+        <td>Local storage on kick.com</td>
+        <td>So your layout comes back the way you left it</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>If you are signed into your browser with sync enabled, your browser may sync the
+  toggle list across your own devices. That is the browser's own sync feature, handled by
+  your browser vendor; the extension neither operates it nor can read the synced data
+  anywhere other than on your device. Uninstalling the extension removes these settings.</p>
+
+  <h2>The deleted-message log</h2>
+  <p>The extension keeps a short log of chat messages that moderators removed, so you can
+  read back what was said. This log lives only in the memory of the open tab. It is never
+  written to disk, never uploaded, and disappears the moment you reload or close the page.
+  It is built entirely from the chat data Kick already sends to your browser.</p>
+
+  <h2>Network connections</h2>
+  <p>Better Kick contacts no server of its own — none exists. The only network requests it
+  makes are to fetch Kick's own logo and favicon images from kick.com, so it can recolour
+  them for the purple theme. These are sent without credentials (no cookies or session
+  data) and return images only. No request carries any information about you, and no data
+  leaves your device.</p>
+
+  <h2>Permissions and why they are needed</h2>
+  <ul>
+    <li><strong><code>storage</code></strong> — to save your on/off preferences for the
+    extension's own features. Nothing else is written to storage.</li>
+    <li><strong>Access to <code>kick.com</code></strong> — the extension only modifies
+    kick.com, so it needs access to those pages to apply its styles and scripts. No other
+    website is requested, and the extension does nothing on any other site.</li>
+  </ul>
+
+  <h2>Remote code</h2>
+  <p>All of the extension's code ships inside the extension package. Nothing is downloaded
+  or executed from a remote source at runtime.</p>
+
+  <h2>Data sharing and sale</h2>
+  <p>Because no data is collected, no data is sold, transferred or shared with third
+  parties. No data is used for advertising, credit assessment or lending. No data is used
+  for any purpose unrelated to the extension's single purpose.</p>
+
+  <h2>Children</h2>
+  <p>The extension collects no data from anyone, of any age.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If the extension ever changes in a way that affects this policy, this page will be
+  updated and the date at the top revised. The page's full history is public in the
+  <a href="https://github.com/firatmelih/better-kick-chrome-extension" rel="noopener">source
+  repository</a>.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy, or about what the extension does, can be raised at
+  <a href="https://github.com/firatmelih/better-kick-chrome-extension/issues" rel="noopener">github.com/firatmelih/better-kick-chrome-extension/issues</a>.</p>
+
+  <footer>
+    Better Kick is an independent, open-source project and is not affiliated with,
+    endorsed by, or connected to Kick.com.
+  </footer>
+</main>
+</body>
+</html>
