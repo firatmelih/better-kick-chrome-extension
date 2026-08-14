@@ -184,6 +184,20 @@
 
     if (spying) console.log(DBG, 'frame', name, msg);
 
+    // The deleted-message log reads the same frames. It is a passive
+    // observer wrapped in its own try: it must never be able to decide
+    // whether a message is delivered, and a bug in it must not cost a chat.
+    // Deliberately runs before the drop rules below, so a message this file
+    // filters out is still recoverable if a moderator later deletes it.
+    try {
+      if (window.__bpkLog) window.__bpkLog.record(name, msg);
+    } catch (err) {
+      if (!dropsFrame.logWarned) {
+        dropsFrame.logWarned = true;
+        console.warn(DBG, 'deleted-message log threw:', err);
+      }
+    }
+
     for (const kind of COSMETIC) {
       if (kind.re.test(name)) {
         if (!on(kind.flag)) return false;

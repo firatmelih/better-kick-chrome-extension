@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="chat.css">
+<style>
+  body { display: block; width: 900px; padding: 26px; }
+
+  .bar {
+    height: 56px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--panel);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    margin-bottom: 22px;
+  }
+  .bar:last-child { margin-bottom: 0; }
+
+  .logo { font-size: 21px; font-weight: 900; letter-spacing: -.03em; font-style: italic; }
+  .fav  { width: 20px; height: 20px; border-radius: 5px; }
+
+  .nav { display: flex; gap: 15px; font-size: 13px; color: var(--dim); }
+  .nav .on { font-weight: 700; position: relative; }
+  .nav .on::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; border-radius: 2px;
+  }
+
+  .search {
+    flex: 1;
+    max-width: 250px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 11px;
+    font-size: 12px;
+    color: #6e7276;
+  }
+
+  .spacer { flex: 1; }
+
+  .live {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .05em;
+    padding: 3px 8px; border-radius: 4px;
+  }
+  .live .d { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+
+  .cta { font-size: 12px; font-weight: 800; padding: 7px 15px; border-radius: 7px; }
+
+  .lbl {
+    font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    color: #5d6165; margin: 0 0 8px 3px;
+  }
+
+  /* green */
+  .g .logo, .g .nav .on { color: var(--kick-green); }
+  .g .nav .on::after   { background: var(--kick-green); }
+  .g .fav              { background: var(--kick-green); }
+  .g .live             { background: var(--kick-green); color: #07090a; }
+  .g .cta              { background: var(--kick-green); color: #07090a; }
+
+  /* purple */
+  .p .logo, .p .nav .on { color: var(--bpk-purple); }
+  .p .nav .on::after   { background: var(--bpk-purple); }
+  .p .fav              { background: var(--bpk-purple); }
+  .p .live             { background: var(--bpk-purple); color: #fff; }
+  .p .cta              { background: var(--bpk-purple); color: #fff; }
+</style>
+</head>
+<body>
+
+<p class="lbl">Before — Kick green <span style="color:#53fc18">#53FC18</span></p>
+<div class="bar g">
+  <span class="fav"></span>
+  <span class="logo">KICK</span>
+  <span class="nav"><span class="on">Following</span><span>Browse</span><span>Categories</span></span>
+  <span class="search">Search</span>
+  <span class="spacer"></span>
+  <span class="live"><span class="d"></span>LIVE</span>
+  <span class="cta">Follow</span>
+</div>
+
+<p class="lbl">After — repainted purple <span style="color:#9147ff">#9147FF</span>, favicon and wordmark included</p>
+<div class="bar p">
+  <span class="fav"></span>
+  <span class="logo">KICK</span>
+  <span class="nav"><span class="on">Following</span><span>Browse</span><span>Categories</span></span>
+  <span class="search">Search</span>
+  <span class="spacer"></span>
+  <span class="live"><span class="d"></span>LIVE</span>
+  <span class="cta">Follow</span>
+</div>
+
+</body>
+</html>

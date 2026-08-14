@@ -83,7 +83,17 @@
     console.log('scripts    ', {
       quality: !!window.__bpkQuality,
       browse: !!window.__bpkBrowse,
-      scroll: !!window.__bpkScroll
+      scroll: !!window.__bpkScroll,
+      chatlog: !!window.__bpkLog
+    });
+    // The deleted-message log has two halves in two worlds and either can be
+    // the missing one: no recorder means the socket hook never ran, a
+    // recorder with no button means content.js could not find the chat
+    // footer to mount it in.
+    console.log('deleted log', {
+      recorder: window.__bpkLog ? window.__bpkLog.report() : 'MISSING — chatlog.js did not run',
+      button: !!document.querySelector('.bpk-log-btn'),
+      panelOpen: !!document.querySelector('.bpk-log.bpk-on')
     });
     console.log('html flags ', flags);
     if (window.__bpkBrowse) {
@@ -93,6 +103,20 @@
     } else {
       console.log('browse      MISSING — browse.js did not run in this frame');
     }
+    // Panel memory lives in localStorage, so it is readable from here even
+    // though the code that writes it runs in the isolated world.
+    let panels = null;
+    try { panels = JSON.parse(localStorage.getItem('bpk_panels') || 'null'); } catch { /* junk */ }
+    const width = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? Math.round(el.getBoundingClientRect().width) : 0;
+    };
+    console.log('panels     ', {
+      remembered: panels || '(nothing learned yet — collapse one to teach it)',
+      sidebarNow: width('nav, aside, [class*="sidebar" i]'),
+      chatNow: width('#chatroom, #chatroom-messages, [data-testid*="chatroom" i]')
+    });
+
     console.log('still green (' + found.length + ')');
     if (found.length) console.table(found);
     else console.log('  none — every brand green on this page was repainted');

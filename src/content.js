@@ -32,9 +32,11 @@
     hideTimestamps: false,
     hideEmpty: true,      // drop rows left with no text once stripping is done
     hideRepeats: true,    // drop copypasta: same message 10x in 10 minutes
+    deletedLog: true,     // keep deleted messages readable behind a chat button
     force1080: true,      // keep the player at 1080p, re-apply when it drops
     smoothScroll: true,   // own chat's auto-scroll + custom scrollbar
-    rememberBrowse: true  // restore the last browse filters (language, sort)
+    rememberBrowse: true, // restore the last browse filters (language, sort)
+    rememberPanels: true  // restore the sidebar + chat collapsed state
   };
 
   // settings key -> <html> attribute that kick.css keys off of
@@ -50,8 +52,10 @@
     hideTimestamps: 'data-bpk-notime',
     hideEmpty: 'data-bpk-empty',
     hideRepeats: 'data-bpk-repeat',
-    // Read by chatscroll.js / quality.js / browse.js, which run in the page
-    // world and so share no variables with this script — only the DOM.
+    // Read by chatscroll.js / quality.js / browse.js / chatlog.js, which run
+    // in the page world and so share no variables with this script — only the
+    // DOM.
+    deletedLog: 'data-bpk-dellog',
     smoothScroll: 'data-bpk-scroll',
     force1080: 'data-bpk-1080',
     rememberBrowse: 'data-bpk-browse'
@@ -964,6 +968,9 @@
     { prop: 'border-right-color', suffix: '-bd' }
   ];
 
+  const PSEUDO_SUFFIXES = ['-bg', '-fg', '-bd'];
+  const pseudoTagged = new WeakSet(); // elements that carry a bpk-p* class
+
   function repaintPseudo(el) {
     for (const { sel, cls } of PSEUDO) {
       let cs;
@@ -976,9 +983,96 @@
       // on screen to recolour.
       if (!cs || cs.content === 'none') continue;
       for (const { prop, suffix } of PSEUDO_PROPS) {
-        if (isKickGreen(cs.getPropertyValue(prop))) addClass(el, cls + suffix);
+        if (!isKickGreen(cs.getPropertyValue(prop))) continue;
+        addClass(el, cls + suffix);
+        pseudoTagged.add(el);
       }
     }
+  }
+
+  // Which inline properties this pass wrote, per element — together with the
+  // declaration that was sitting there before, so taking the write back off
+  // puts Kick's own value back rather than deleting it. removeProperty() was
+  // destructive: Kick writes username colours as inline style="color: ...",
+  // setProperty replaced that declaration outright, and the clear then left
+  // the element with no colour at all. The next measurement found nothing
+  // green to repaint, so a recycled chat row came back green and stayed a
+  // different colour on every pass through the list.
+  const paintedProps = new WeakMap(); // el -> [{ prop, value, priority }]
+
+  // class + style attribute as they stood when the paint was written. If both
+  // are still the same, nothing that could change the answer has happened.
+  const paintSig = new WeakMap();
+
+  function paintSignature(el) {
+    // Separated by a character neither attribute can contain, so a token
+    // moving from one to the other cannot read as "unchanged".
+    return (el.getAttribute('class') || '') + '\u0000' + (el.getAttribute('style') || '');
+  }
+
+  // Stripping the paint off to look underneath it is only invisible while the
+  // intermediate state is never rendered. It is not: getComputedStyle below
+  // forces a style recalc, which commits the green the clear just exposed, and
+  // for any element Kick gave a colour transition the engine starts animating
+  // towards it. Writing purple straight after does not cancel that — it starts
+  // a second transition from wherever the first one got to. That is the
+  // purple -> green -> purple flash, once every sweep, on exactly the elements
+  // with a transition on them (buttons, links, the LIVE pill).
+  //
+  // Pinning transitions off for the length of the measurement means no
+  // intermediate state is ever animated. The pin comes back off only after a
+  // second forced recalc has committed the final colour: re-enabling
+  // transitions while the engine still holds green as the previous value would
+  // start the same animation the moment anything else touches the element.
+  // Pinned through a class rather than an inline property, because
+  // ::before / ::after carry their own transitions and no inline style can
+  // reach them — and a pseudo is where half of Kick's green lives (the dot on
+  // a LIVE pill is the classic one).
+  function suppressTransitions(el) {
+    addClass(el, 'bpk-measuring');
+    return () => {
+      try {
+        getComputedStyle(el).getPropertyValue('color');
+      } catch {
+        /* element went away mid-pass */
+      }
+      removeClass(el, 'bpk-measuring');
+    };
+  }
+
+  // The pass used to only ever ADD inline styles. That is fine while an
+  // element's colours are fixed and wrong the moment they are not: Kick's
+  // browse tabs move the "active" classes from one <a> to the next, so a tab
+  // that had just gone inactive kept the purple written for it and carried on
+  // looking active — two tabs underlined at once, and the newly active one
+  // still green until the next pass caught up.
+  //
+  // Clearing before re-measuring is what makes the pass reversible. It has to
+  // happen before getComputedStyle, or the read returns our own purple and the
+  // element looks like it was never green.
+  function clearPaint(el) {
+    const props = paintedProps.get(el);
+    if (props) {
+      for (const { prop, value, priority } of props) {
+        if (value) el.style.setProperty(prop, value, priority);
+        else el.style.removeProperty(prop);
+      }
+      paintedProps.delete(el);
+    }
+    paintSig.delete(el);
+    if (pseudoTagged.has(el)) {
+      for (const { cls } of PSEUDO) {
+        for (const suffix of PSEUDO_SUFFIXES) removeClass(el, cls + suffix);
+      }
+      pseudoTagged.delete(el);
+    }
+  }
+
+  // Theme switched off: every inline colour this pass wrote comes back out.
+  // One walk of the document on a toggle the user rarely touches, in exchange
+  // for the theme actually turning off without a reload.
+  function clearAllPaint() {
+    for (const el of document.querySelectorAll('*')) clearPaint(el);
   }
 
   function repaint(el) {
@@ -986,32 +1080,74 @@
     if (paintGen.get(el) === generation) return;
     paintGen.set(el, generation);
 
+    const painted = paintedProps.has(el) || pseudoTagged.has(el);
+    // Already purple, and neither its classes nor its style attribute have
+    // moved since: the answer cannot have changed, so there is nothing to gain
+    // from stripping the paint off and looking underneath again. The sweep
+    // bumps the generation to catch elements that turn green *later*, and
+    // those are the unpainted ones, which are measured without a clear. Kick
+    // swapping an element's colour does move one of the two attributes — a
+    // class change, or React rewriting an inline style — and both land here as
+    // a different signature.
+    if (painted && paintSig.get(el) === paintSignature(el)) return;
+
+    const restore = painted ? suppressTransitions(el) : null;
+    clearPaint(el);
+
     let cs;
     try {
       cs = getComputedStyle(el);
     } catch {
+      cs = null;
+    }
+    if (!cs || !cs.color) {
+      if (restore) restore();
       return;
     }
-    if (!cs || !cs.color) return;
 
+    const wrote = [];
     for (const prop of COLOR_PROPS) {
       const v = cs.getPropertyValue(prop);
-      if (isKickGreen(v)) el.style.setProperty(prop, PURPLE, 'important');
+      if (isKickGreen(v)) {
+        wrote.push({
+          prop,
+          value: el.style.getPropertyValue(prop),
+          priority: el.style.getPropertyPriority(prop)
+        });
+        el.style.setProperty(prop, PURPLE, 'important');
+      }
     }
     // A <stop> lives inside <defs>, which the UA stylesheet gives display:none.
     // Computed style is still defined there, but reading the attribute as well
     // costs one property check per element and does not depend on the engine
     // resolving presentation attributes for an unrendered subtree.
     if (el.localName === 'stop' && isKickGreen(el.getAttribute('stop-color'))) {
+      wrote.push({
+        prop: 'stop-color',
+        value: el.style.getPropertyValue('stop-color'),
+        priority: el.style.getPropertyPriority('stop-color')
+      });
       el.style.setProperty('stop-color', PURPLE, 'important');
     }
     for (const prop of ['box-shadow', 'background-image', 'text-shadow']) {
       const v = cs.getPropertyValue(prop);
       if (v && v !== 'none' && isKickGreen(v)) {
+        wrote.push({
+          prop,
+          value: el.style.getPropertyValue(prop),
+          priority: el.style.getPropertyPriority(prop)
+        });
         el.style.setProperty(prop, greenToPurple(v), 'important');
       }
     }
+    if (wrote.length) paintedProps.set(el, wrote);
     repaintPseudo(el);
+    if (restore) restore();
+    // Written last: repaintPseudo and the transition pin both touch the very
+    // attributes the signature is taken from.
+    if (paintedProps.has(el) || pseudoTagged.has(el)) {
+      paintSig.set(el, paintSignature(el));
+    }
   }
 
   // Repaint is the expensive pass, so it runs from a budgeted queue.
@@ -1158,6 +1294,174 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* favicon -> purple                                                   */
+  /* ------------------------------------------------------------------ */
+
+  // The tab icon is a separate file again, and unlike the wordmark it is not
+  // always an SVG — Kick may serve .ico or .png, which no text rewrite can
+  // touch. Rasters go through a canvas: fetch (same origin, so the canvas is
+  // never tainted and getImageData is allowed), recolour the green pixels,
+  // hand back a data: URI.
+  //
+  // The link element's href is updated in place rather than the element being
+  // replaced. Chrome re-reads a changed href, and leaving Kick's own <link>
+  // nodes where they are keeps this out of the way of Next.js's head manager —
+  // removing nodes it believes it owns is how you get it to throw on the next
+  // navigation.
+  const FAVICON_SEL = 'link[rel~="icon" i], link[rel*="icon" i]';
+  const faviconCache = new Map(); // original href -> recoloured data: URI
+  const faviconTried = new Set();
+
+  // Looser than isKickGreen on purpose. That one reads CSS values, where the
+  // colour is exactly what the designer wrote; here every edge pixel is a
+  // blend between the brand green and whatever is behind it, and leaving those
+  // alone puts a green fringe around a purple icon.
+  function isGreenishPixel(r, g, b) {
+    return g > Math.max(r, b) + 30;
+  }
+
+  // createImageBitmap is the direct route, but .ico is exactly the format a
+  // decoder is most likely to refuse — and it is the one favicons are most
+  // likely to be in. An <img> goes through the full image pipeline, which
+  // does take .ico, so it is worth the extra round trip as a fallback.
+  function decodeViaImg(blob) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      const done = (value) => {
+        URL.revokeObjectURL(url);
+        resolve(value);
+      };
+      img.onload = () => done(img);
+      img.onerror = () => done(null);
+      img.src = url;
+    });
+  }
+
+  async function rasterToPurple(blob) {
+    let bmp = null;
+    try {
+      bmp = await createImageBitmap(blob);
+    } catch {
+      bmp = await decodeViaImg(blob);
+    }
+    if (!bmp) return null;
+    // Favicons are tiny; a cap only guards against a mislabelled huge file.
+    const w = Math.min(bmp.width || bmp.naturalWidth || 0, 256);
+    const h = Math.min(bmp.height || bmp.naturalHeight || 0, 256);
+    if (!w || !h) return null;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    if (typeof bmp.close === 'function') bmp.close();
+
+    let data;
+    try {
+      data = ctx.getImageData(0, 0, w, h);
+    } catch {
+      return null; // tainted canvas — should not happen same-origin, but
+    }
+    const px = data.data;
+    let changed = 0;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] === 0) continue; // fully transparent: nothing to recolour
+      if (!isGreenishPixel(px[i], px[i + 1], px[i + 2])) continue;
+      px[i] = 145;
+      px[i + 1] = 71;
+      px[i + 2] = 255;
+      changed++;
+    }
+    if (!changed) return null; // nothing green in it — leave Kick's file alone
+    ctx.putImageData(data, 0, 0);
+    try {
+      return canvas.toDataURL('image/png');
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchFavicon(url) {
+    try {
+      const res = await fetch(url, { credentials: 'omit' });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      if (blob.size > 1024 * 1024) return;
+
+      let uri = null;
+      // An SVG favicon can reuse the wordmark's text rewrite, which keeps the
+      // icon vector-sharp instead of baking it to a fixed-size PNG.
+      if (/svg/i.test(blob.type) || /\.svg(\?|$)/i.test(url)) {
+        const text = await blob.text();
+        const purple = svgToPurple(text, true);
+        if (purple) uri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(purple);
+      }
+      if (!uri) uri = await rasterToPurple(blob);
+      if (!uri) return;
+
+      faviconCache.set(url, uri);
+      purpleFavicon(); // the link elements are already on the page, waiting
+    } catch {
+      /* offline, blocked, or undecodable — leave the tab icon alone */
+    }
+  }
+
+  function purpleFavicon() {
+    if (!S.purpleTheme || !document.head) return;
+    let links = Array.from(document.querySelectorAll(FAVICON_SEL));
+    // No declared icon at all: the browser is falling back to /favicon.ico, so
+    // give it something to point at before recolouring it. Only once the page
+    // has finished loading, though — Next.js writes its own icon links late,
+    // and synthesising one first would leave two icons competing.
+    if (!links.length) {
+      if (document.readyState !== 'complete') return;
+      const link = document.createElement('link');
+      link.rel = 'icon';
+      link.href = '/favicon.ico';
+      link.dataset.bpkFaviconOwn = '1';
+      document.head.appendChild(link);
+      links = [link];
+    }
+    for (const link of links) {
+      const original = link.dataset.bpkFaviconSrc || link.getAttribute('href') || '';
+      if (!original || original.startsWith('data:')) continue;
+      let url;
+      try {
+        url = new URL(original, location.href).href;
+      } catch {
+        continue;
+      }
+      const done = faviconCache.get(url);
+      if (done) {
+        if (link.getAttribute('href') === done) continue;
+        if (!link.dataset.bpkFaviconSrc) link.dataset.bpkFaviconSrc = original;
+        link.setAttribute('href', done);
+        continue;
+      }
+      if (faviconTried.has(url)) continue;
+      faviconTried.add(url);
+      fetchFavicon(url);
+    }
+  }
+
+  // Theme switched off: put Kick's own tab icon back, and drop the link
+  // element if it was ours to begin with.
+  function restoreFavicon() {
+    for (const link of document.querySelectorAll('link[data-bpk-favicon-src], link[data-bpk-favicon-own]')) {
+      if (link.dataset.bpkFaviconOwn) {
+        link.remove();
+        continue;
+      }
+      const original = link.dataset.bpkFaviconSrc;
+      delete link.dataset.bpkFaviconSrc;
+      if (original) link.setAttribute('href', original);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
   /* scanning                                                            */
   /* ------------------------------------------------------------------ */
 
@@ -1172,8 +1476,15 @@
     return out;
   }
 
+  // Our own UI (the deleted-messages button and its window) is not Kick's
+  // chat: it must not be tagged as a row, stripped of emoji or repainted.
+  function ours(node) {
+    return !!(node && node.nodeType === 1 && node.closest && node.closest('.bpk-ui'));
+  }
+
   function scan(root) {
     if (!root || (root.nodeType !== 1 && root.nodeType !== 9)) return;
+    if (ours(root)) return;
     tagChatrooms(root);
     tagEntries(root);
     hideLabelledControls(root);
@@ -1184,7 +1495,7 @@
   // Attribute churn is constant on a React page, so an attribute change only
   // re-examines that one element — never its whole subtree.
   function scanShallow(el) {
-    if (!el || el.nodeType !== 1) return;
+    if (!el || el.nodeType !== 1 || ours(el)) return;
     try {
       if (el.matches(CHATROOM_SEL)) addClass(el, 'bpk-chatroom');
       if (el.classList.contains('bpk-entry')) {
@@ -1246,11 +1557,27 @@
   // and isRowLike() already refuses to tag an empty shell, so a row React
   // fills in afterwards is left to the deferred pass as before.
   function tagNewRows(node) {
+    if (ours(node)) return;
     try {
       tagEntries(node);
     } catch {
       /* one bad subtree must not take down the batch */
     }
+  }
+
+  // Kick's own tokens only, sorted so that a reorder — which classList.remove
+  // followed by classList.add produces on its own — does not read as a change.
+  function foreignClasses(value) {
+    if (!value) return '';
+    return value
+      .split(/\s+/)
+      .filter((c) => c && !c.startsWith('bpk-'))
+      .sort()
+      .join(' ');
+  }
+
+  function ownClassChange(oldValue, el) {
+    return foreignClasses(oldValue) === foreignClasses(el.getAttribute('class'));
   }
 
   const observer = new MutationObserver((records) => {
@@ -1261,10 +1588,17 @@
         continue;
       }
       if (rec.type === 'attributes') {
-        // A class change is the main way an element's colours change, so let
-        // the repaint pass look at it again rather than trusting the verdict
-        // it reached under the old class list.
-        if (rec.attributeName === 'class') paintGen.delete(rec.target);
+        if (rec.attributeName === 'class') {
+          // Every tag this file writes is a class change, and the observer
+          // sees them all — so a tagged element re-scanned itself on the next
+          // frame, tagged itself again, and never stopped. Only a change Kick
+          // made is worth reacting to.
+          if (ownClassChange(rec.oldValue, rec.target)) continue;
+          // A class change is the main way an element's colours change, so let
+          // the repaint pass look at it again rather than trusting the verdict
+          // it reached under the old class list.
+          paintGen.delete(rec.target);
+        }
         scheduleScan(rec.target, false);
         continue;
       }
@@ -1511,6 +1845,643 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* deleted messages log                                                */
+  /* ------------------------------------------------------------------ */
+
+  // The reading half of chatlog.js: a button next to Kick's chat settings cog
+  // and a chat-shaped window listing what was deleted, who wrote it, when it
+  // went and — where Kick's own events say so — who took it down.
+  //
+  // Entries arrive by postMessage from the page world (chatlog.js has the
+  // socket; this script has chrome.storage and the UI). The page could forge
+  // one of those messages, so nothing in an entry is ever treated as markup:
+  // every field below goes in through textContent.
+  //
+  // The panel is position:fixed at <body> level over the chat's rect rather
+  // than a child of the chat — the same reason chatscroll.js puts its
+  // scrollbar there. React owns the chat subtree and reconciles foreign
+  // children away. The *button* has to live in the chat footer to be next to
+  // the cog, so it is remounted by the sweep whenever React drops it.
+
+  const LOG_MAX = 400;
+  const logEntries = [];
+  const logRows = new Map(); // entry seq -> row element
+  let logBtn = null;
+  let logBadge = null;
+  let logPanel = null;
+  let logBody = null;
+  let logCount = null;
+  let logEmpty = null;
+  let logOpen = false;
+  let logSeen = 0; // highest seq the user has already looked at
+  let logPlaceTimer = 0;
+
+  function clock(ms) {
+    if (!ms) return '';
+    const d = new Date(ms);
+    const p = (n) => String(n).padStart(2, '0');
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  // Kick sends emotes as "[emote:37226:EZ]". The rest of the extension throws
+  // emotes away, but in a log of things somebody said, the name is the only
+  // trace of what they sent — so it is kept as plain text.
+  const LOG_MARKUP_RE = /\[(?:emote|emoji|sticker|gif|img)[:|]([^\]]*)\]/gi;
+
+  function logText(raw) {
+    let t = String(raw || '').replace(LOG_MARKUP_RE, (_m, body) => {
+      const parts = String(body).split(/[:|]/);
+      const name = parts[parts.length - 1] || '';
+      return name ? ' ' + name + ' ' : ' ';
+    });
+    if (S.stripEmoji) t = t.replace(EMOJI_RE, '');
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function svgIcon(paths, size) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const el = document.createElementNS(NS, 'svg');
+    el.setAttribute('viewBox', '0 0 24 24');
+    el.setAttribute('width', String(size));
+    el.setAttribute('height', String(size));
+    el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', 'currentColor');
+    el.setAttribute('stroke-width', '1.8');
+    el.setAttribute('stroke-linecap', 'round');
+    el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('aria-hidden', 'true');
+    for (const d of paths) {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d);
+      el.appendChild(p);
+    }
+    return el;
+  }
+
+  /* ---- where the button goes ---------------------------------------- */
+
+  // Every hook in Kick's chat footer is unreliable: no id, icon-only buttons,
+  // localised labels, and a send button that is sometimes not a <button
+  // type=submit> at all. So the mount does not look for the send button. It
+  // works outward from the one thing in that footer that is unmistakable —
+  // the box you type in — and takes the button row nearest to it.
+  //
+  // And if there is no composer at all (logged out, chat in read-only mode)
+  // it falls back to a small floating button pinned to the chat panel.
+  // A feature you cannot reach is worse than one sitting slightly off.
+  //
+  // Which route was taken is written to <html data-bpk-logmount> so that
+  // __bpkDiag() can print it: "none" means no chat panel was found at all,
+  // "float" means the footer was not recognised.
+
+  const CHAT_INPUT_SEL =
+    '#chat-input,[data-testid*="chat-input" i],[data-lexical-editor="true"],' +
+    'div[contenteditable="true"],textarea';
+
+  // Ordered by how much the selector is trusted, not by convenience: the
+  // first entry is Kick's real id and the last ones are guesses, and
+  // "[data-testid*=chat]" on its own would happily match a chat *toggle* in
+  // the top bar.
+  const CHATBOX_LIST = [
+    '#chatroom',
+    '#chatroom-messages',
+    '[id*="chatroom" i]',
+    '[data-testid*="chatroom" i]',
+    '[class*="chatroom" i]:not([class*="--chatroom" i])'
+  ];
+
+  // Used for the panel's placement too, where any of these is good enough.
+  const CHATBOX_SEL = CHATBOX_LIST.join(',');
+
+  function chatBox() {
+    for (const sel of CHATBOX_LIST) {
+      let el;
+      try {
+        el = document.querySelector(sel);
+      } catch {
+        continue; // :not()/:is() unsupported here — try the next one
+      }
+      if (el && el.getBoundingClientRect().width > 120) return el;
+    }
+    return null;
+  }
+
+  let mountNoted = '';
+
+  function markMount(how) {
+    const html = document.documentElement;
+    if (html && html.getAttribute('data-bpk-logmount') !== how) {
+      html.setAttribute('data-bpk-logmount', how);
+    }
+    // One line per change of route, so a "where is my button" report can be
+    // answered from the console without any DOM archaeology.
+    if (mountNoted !== how) {
+      mountNoted = how;
+      console.debug('[Better Kick log] deleted-messages button mount:', how);
+    }
+  }
+
+  // Zero-sized buttons are Kick's hidden/placeholder controls; inserting next
+  // to one would put ours somewhere invisible too.
+  function realButtons(root) {
+    const out = [];
+    for (const b of root.querySelectorAll('button, [role="button"]')) {
+      if (b.closest('.bpk-ui')) continue;
+      // The quick-emote strip is a row of buttons directly above the input,
+      // and plain-chat mode hides the whole strip — mounting in there would
+      // hide the log button with it.
+      if (b.closest('#quick-emotes-holder,[id*="quick-emote" i]')) continue;
+      const r = b.getBoundingClientRect();
+      if (r.width > 6 && r.height > 6) out.push(b);
+    }
+    return out;
+  }
+
+  const COG_RE = /setting|ayar|option|seçenek|secenek|preference|gear/i;
+
+  function findCog(row, skip) {
+    for (const b of row.querySelectorAll('button, [role="button"]')) {
+      if (b === skip || b.closest('.bpk-ui')) continue;
+      const label = (b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('title') || '');
+      if (COG_RE.test(label)) return b;
+    }
+    return null;
+  }
+
+  // The direct child of `row` that contains `el` — the send button is often
+  // wrapped, and inserting next to the wrapper keeps the footer's own layout.
+  function childHolding(row, el) {
+    let n = el;
+    while (n && n.parentElement && n.parentElement !== row) n = n.parentElement;
+    return n && n.parentElement === row ? n : null;
+  }
+
+  function findInput(scope) {
+    for (const el of scope.querySelectorAll(CHAT_INPUT_SEL)) {
+      if (el.closest('.bpk-ui')) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width > 40 && r.height > 8) return el;
+    }
+    return null;
+  }
+
+  function findMountSpot(box) {
+    // #chatroom is sometimes only the message list, with the composer as a
+    // sibling below it, so the search widens by a few ancestors before giving
+    // up. It stops well short of <body> — the page's other text boxes (search,
+    // login) must never be mistaken for the chat composer.
+    let input = null;
+    let scope = box;
+    for (let i = 0; scope && i < 4 && !input; i++, scope = scope.parentElement) {
+      input = findInput(scope);
+    }
+    if (!input) return null;
+
+    // Climb out of the text box until an ancestor holds a real button. That
+    // ancestor is the composer; the last button in it is the rightmost
+    // control, which is Send in every layout Kick has shipped.
+    let el = input.parentElement;
+    for (let i = 0; el && el !== box && i < 6; i++, el = el.parentElement) {
+      const btns = realButtons(el);
+      if (!btns.length) continue;
+      const last = btns[btns.length - 1];
+      let row = last.parentElement;
+      // A send button wrapped alone in its own div: go up one, so the log
+      // button joins the action cluster instead of the wrapper.
+      if (row && row !== el && realButtons(row).length < 2 && row.parentElement) {
+        row = row.parentElement;
+      }
+      if (!row) row = el;
+      const cog = findCog(row, last);
+      return {
+        parent: row,
+        before: cog || childHolding(row, last),
+        how: cog ? 'cog' : 'send'
+      };
+    }
+    return null;
+  }
+
+  function makeLogButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button'; // the footer is a form — a default button would submit it
+    btn.className = 'bpk-ui bpk-log-btn';
+    btn.setAttribute('aria-label', 'Deleted messages');
+    btn.title = 'Deleted messages (Better Kick)';
+    btn.appendChild(
+      svgIcon(['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 14h10l1-14', 'M10 10v7', 'M14 10v7'], 18)
+    );
+    logBadge = document.createElement('span');
+    logBadge.className = 'bpk-log-badge';
+    logBadge.hidden = true;
+    btn.appendChild(logBadge);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleLog();
+    });
+    return btn;
+  }
+
+  let floatTimer = 0;
+
+  function mountLogButton() {
+    if (!S.deletedLog) return;
+    if (logBtn && logBtn.isConnected) return;
+    const box = chatBox();
+    if (!box) {
+      markMount('none');
+      return;
+    }
+    const spot = findMountSpot(box);
+    if (spot && spot.parent && spot.parent.isConnected) {
+      const btn = makeLogButton();
+      // Left of the cog, so the order reads [log][settings][send].
+      if (spot.before && spot.before.parentElement === spot.parent) {
+        spot.parent.insertBefore(btn, spot.before);
+      } else {
+        spot.parent.appendChild(btn);
+      }
+      logBtn = btn;
+      stopFloat();
+      markMount(spot.how);
+    } else {
+      floatButton();
+      markMount('float');
+    }
+    paintBadge();
+  }
+
+  // Last resort: a chip pinned to the top-right of the chat panel. Fixed at
+  // <body> level and repositioned on a slow timer, like the panel itself.
+  function floatButton() {
+    const btn = makeLogButton();
+    btn.classList.add('bpk-log-float');
+    document.body.appendChild(btn);
+    logBtn = btn;
+    placeFloat();
+    if (!floatTimer) floatTimer = setInterval(placeFloat, 1000);
+  }
+
+  function stopFloat() {
+    clearInterval(floatTimer);
+    floatTimer = 0;
+  }
+
+  function placeFloat() {
+    if (!logBtn || !logBtn.classList.contains('bpk-log-float')) {
+      stopFloat();
+      return;
+    }
+    const box = chatBox();
+    const r = box ? box.getBoundingClientRect() : null;
+    if (!r || r.width < 120 || r.height < 120) {
+      logBtn.style.display = 'none';
+      return;
+    }
+    logBtn.style.display = '';
+    logBtn.style.left = Math.round(r.right - 44) + 'px';
+    logBtn.style.top = Math.round(r.top + 8) + 'px';
+  }
+
+  /* ---- the window ---------------------------------------------------- */
+
+  function makePanel() {
+    const panel = document.createElement('div');
+    panel.className = 'bpk-ui bpk-log';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Deleted messages');
+
+    const head = document.createElement('div');
+    head.className = 'bpk-log-head';
+
+    const title = document.createElement('span');
+    title.className = 'bpk-log-title';
+    title.textContent = 'Deleted messages';
+    head.appendChild(title);
+
+    logCount = document.createElement('span');
+    logCount.className = 'bpk-log-n';
+    head.appendChild(logCount);
+
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'bpk-log-clear';
+    clear.textContent = 'Clear';
+    clear.addEventListener('click', () => {
+      logEntries.length = 0;
+      logRows.clear();
+      logSeen = 0;
+      askLog('clear');
+      renderLog();
+      paintBadge();
+    });
+    head.appendChild(clear);
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'bpk-log-x';
+    close.setAttribute('aria-label', 'Close');
+    close.appendChild(svgIcon(['M5 5l14 14', 'M19 5L5 19'], 16));
+    close.addEventListener('click', closeLog);
+    head.appendChild(close);
+
+    panel.appendChild(head);
+
+    logBody = document.createElement('div');
+    logBody.className = 'bpk-log-body';
+    panel.appendChild(logBody);
+
+    logEmpty = document.createElement('div');
+    logEmpty.className = 'bpk-log-none';
+    logEmpty.textContent =
+      'Nothing deleted yet. Messages removed from this chat from now on show up here.';
+    logBody.appendChild(logEmpty);
+
+    const foot = document.createElement('div');
+    foot.className = 'bpk-log-foot';
+    foot.textContent = 'Kept in this tab only — closing it forgets everything.';
+    panel.appendChild(foot);
+
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function metaText(e) {
+    const parts = [];
+    parts.push((e.kind === 'ban' ? 'removed ' : 'deleted ') + clock(e.at));
+    const auto = /automod/i.test(e.why || '');
+    if (e.by) parts.push('by ' + e.by + (e.guessed ? ' (assumed)' : ''));
+    else if (!auto) parts.push('by an unknown moderator');
+    if (e.why) parts.push(e.why);
+    return parts.join(' · ');
+  }
+
+  function makeRow(e) {
+    const row = document.createElement('div');
+    row.className = 'bpk-log-row' + (e.kind === 'notice' ? ' bpk-log-notice' : '');
+
+    if (e.kind === 'notice') {
+      const line = document.createElement('div');
+      line.className = 'bpk-log-msg';
+      const t = document.createElement('span');
+      t.className = 'bpk-log-time';
+      t.textContent = clock(e.at);
+      line.appendChild(t);
+      const said = document.createElement('span');
+      said.className = 'bpk-log-say';
+      said.textContent = e.user
+        ? e.user + ' ' + (e.why || 'was moderated') + (e.by ? ' · by ' + e.by : '')
+        : e.why || 'moderator action';
+      line.appendChild(said);
+      row.appendChild(line);
+      return row;
+    }
+
+    const line = document.createElement('div');
+    line.className = 'bpk-log-msg';
+
+    const time = document.createElement('span');
+    time.className = 'bpk-log-time';
+    time.textContent = e.sentAt ? clock(e.sentAt) : '--:--:--';
+    line.appendChild(time);
+
+    const user = document.createElement('span');
+    user.className = 'bpk-log-user';
+    if (e.color && !S.monoUsernames && /^#[0-9a-f]{3,8}$/i.test(e.color)) {
+      user.style.color = e.color;
+    }
+    user.textContent = e.user || '(unknown user)';
+    line.appendChild(user);
+
+    const sep = document.createElement('span');
+    sep.className = 'bpk-log-sep';
+    sep.textContent = ':';
+    line.appendChild(sep);
+
+    const text = document.createElement('span');
+    text.className = 'bpk-log-text';
+    const body = logText(e.text);
+    if (!e.known) {
+      text.classList.add('bpk-log-dim');
+      text.textContent = '(not captured — it was sent before this tab was open)';
+    } else if (!body) {
+      text.classList.add('bpk-log-dim');
+      text.textContent = '(emotes only)';
+    } else {
+      text.textContent = body;
+    }
+    line.appendChild(text);
+    row.appendChild(line);
+
+    const meta = document.createElement('div');
+    meta.className = 'bpk-log-meta';
+    meta.textContent = metaText(e);
+    row.appendChild(meta);
+
+    if (e.guessed) {
+      row.title =
+        "Kick's delete event does not name a moderator. This name is taken from a ban of the same" +
+        ' user seconds later, so it is an attribution, not a fact.';
+    }
+    return row;
+  }
+
+  function renderLog() {
+    if (!logBody) return;
+    logBody.textContent = '';
+    logRows.clear();
+    logBody.appendChild(logEmpty);
+    logEmpty.hidden = logEntries.length > 0;
+    for (const e of logEntries) {
+      const row = makeRow(e);
+      logRows.set(e.seq, row);
+      logBody.appendChild(row);
+    }
+    if (logCount) logCount.textContent = String(logEntries.length);
+    logBody.scrollTop = logBody.scrollHeight;
+  }
+
+  function addLogEntry(e) {
+    if (!e || typeof e !== 'object' || typeof e.seq !== 'number') return;
+    logEntries.push(e);
+    if (logEntries.length > LOG_MAX) {
+      const gone = logEntries.splice(0, logEntries.length - LOG_MAX);
+      for (const old of gone) {
+        const row = logRows.get(old.seq);
+        if (row) row.remove();
+        logRows.delete(old.seq);
+      }
+    }
+    if (logOpen && logBody) {
+      const atEnd = logBody.scrollHeight - logBody.scrollTop - logBody.clientHeight < 24;
+      const row = makeRow(e);
+      logRows.set(e.seq, row);
+      logBody.appendChild(row);
+      logEmpty.hidden = true;
+      if (logCount) logCount.textContent = String(logEntries.length);
+      if (atEnd) logBody.scrollTop = logBody.scrollHeight;
+      logSeen = e.seq;
+    }
+    paintBadge();
+  }
+
+  // chatlog.js re-sends an entry when a later ban tells it who the moderator
+  // was — same seq, one more field filled in.
+  function updateLogEntry(e) {
+    if (!e || typeof e.seq !== 'number') return;
+    const i = logEntries.findIndex((x) => x.seq === e.seq);
+    if (i < 0) return;
+    logEntries[i] = e;
+    const row = logRows.get(e.seq);
+    if (!row) return;
+    const fresh = makeRow(e);
+    logRows.set(e.seq, fresh);
+    row.replaceWith(fresh);
+  }
+
+  function paintBadge() {
+    if (!logBadge) return;
+    let unseen = 0;
+    for (const e of logEntries) if (e.seq > logSeen) unseen++;
+    logBadge.textContent = unseen > 99 ? '99+' : String(unseen);
+    logBadge.hidden = unseen === 0;
+    if (logBtn) logBtn.classList.toggle('bpk-has-new', unseen > 0);
+  }
+
+  function placePanel() {
+    if (!logPanel || !logOpen) return;
+    let box = null;
+    try {
+      box = (logBtn && logBtn.closest(CHATBOX_SEL)) || document.querySelector('#chatroom');
+    } catch {
+      box = document.querySelector('#chatroom');
+    }
+    const r = box ? box.getBoundingClientRect() : null;
+    const b = logBtn && logBtn.isConnected ? logBtn.getBoundingClientRect() : null;
+    let left;
+    let width;
+    let top;
+    let bottom;
+    if (r && r.width >= 200 && r.height >= 200) {
+      left = r.left;
+      width = r.width;
+      top = r.top + 8;
+      // Stop above the composer when the button is inside the same box, so
+      // the chat input stays usable with the log open.
+      bottom = (b && b.top > r.top + 160 ? b.top : r.bottom) - 10;
+    } else if (b) {
+      width = Math.min(380, window.innerWidth - 16);
+      left = Math.max(8, Math.min(b.right - width, window.innerWidth - width - 8));
+      bottom = b.top - 10;
+      top = Math.max(8, bottom - 460);
+    } else {
+      return;
+    }
+    logPanel.style.left = Math.round(left) + 'px';
+    logPanel.style.width = Math.round(width) + 'px';
+    logPanel.style.top = Math.round(top) + 'px';
+    logPanel.style.height = Math.round(Math.max(180, bottom - top)) + 'px';
+  }
+
+  function openLog() {
+    if (!S.deletedLog) return;
+    if (!logPanel) logPanel = makePanel();
+    logOpen = true;
+    logPanel.classList.add('bpk-on');
+    if (logBtn) logBtn.classList.add('bpk-open');
+    askLog('sync'); // in case entries landed before this panel existed
+    renderLog();
+    placePanel();
+    logSeen = logEntries.length ? logEntries[logEntries.length - 1].seq : logSeen;
+    paintBadge();
+    // The chat panel is resized by the sidebar, by theatre mode and by the
+    // window; re-measuring on a slow timer is cheaper than watching all three.
+    clearInterval(logPlaceTimer);
+    logPlaceTimer = setInterval(placePanel, 250);
+    window.addEventListener('resize', placePanel);
+    document.addEventListener('keydown', onLogKey, true);
+  }
+
+  function closeLog() {
+    logOpen = false;
+    if (logPanel) logPanel.classList.remove('bpk-on');
+    if (logBtn) logBtn.classList.remove('bpk-open');
+    clearInterval(logPlaceTimer);
+    logPlaceTimer = 0;
+    window.removeEventListener('resize', placePanel);
+    document.removeEventListener('keydown', onLogKey, true);
+  }
+
+  function toggleLog() {
+    if (logOpen) closeLog();
+    else openLog();
+  }
+
+  function onLogKey(e) {
+    if (e.key === 'Escape' && logOpen) {
+      e.stopPropagation();
+      closeLog();
+    }
+  }
+
+  function teardownLog() {
+    closeLog();
+    stopFloat();
+    // Switched off means nothing is kept anywhere, not just nothing shown.
+    askLog('off');
+    logEntries.length = 0;
+    logSeen = 0;
+    if (logPanel) {
+      logPanel.remove();
+      logPanel = null;
+      logBody = null;
+      logCount = null;
+      logEmpty = null;
+    }
+    if (logBtn) {
+      logBtn.remove();
+      logBtn = null;
+      logBadge = null;
+    }
+    logRows.clear();
+  }
+
+  function askLog(type) {
+    try {
+      window.postMessage({ __bpk: 'log', type }, location.origin || '*');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  window.addEventListener('message', (ev) => {
+    if (ev.source !== window) return;
+    const d = ev.data;
+    if (!d || d.__bpk !== 'log' || !S.deletedLog) return;
+    if (d.type === 'entry') addLogEntry(d.entry);
+    else if (d.type === 'update') updateLogEntry(d.entry);
+    else if (d.type === 'list') {
+      if (!Array.isArray(d.entries)) return;
+      logEntries.length = 0;
+      logEntries.push(...d.entries.slice(-LOG_MAX));
+      if (logOpen) {
+        renderLog();
+        // The panel is on screen, so everything in it counts as seen.
+        logSeen = logEntries.length ? logEntries[logEntries.length - 1].seq : logSeen;
+      }
+      paintBadge();
+    } else if (d.type === 'reset') {
+      // Channel change: the previous chat's log is not this chat's log.
+      logEntries.length = 0;
+      logRows.clear();
+      logSeen = 0;
+      if (logOpen) renderLog();
+      paintBadge();
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
   /* boot                                                                */
   /* ------------------------------------------------------------------ */
 
@@ -1519,6 +2490,219 @@
     if (!html) return;
     for (const [key, attr] of Object.entries(FLAGS)) {
       html.setAttribute(attr, S[key] ? 'on' : 'off');
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* sidebar / chat collapse memory                                      */
+  /* ------------------------------------------------------------------ */
+
+  // Kick holds the collapsed state of the left rail and the chat panel in
+  // React state and nowhere else, so every reload puts both back to their
+  // defaults. Nothing outside the app can set that state — the only way in is
+  // the toggle the user clicks, which makes replaying a click the only
+  // mechanism available.
+  //
+  // Which button to replay is *learned* rather than hardcoded, because neither
+  // toggle has a hook worth trusting: a collapse button's aria-label flips
+  // between "collapse" and "expand" as it is used, and the labels are
+  // localised on top of that. So: when a click is followed by a panel changing
+  // width, that button is the toggle for that panel. It gets remembered along
+  // with the width the user left the panel at, and on the next load, if the
+  // panel comes up materially different, the button is clicked once.
+  //
+  // The upshot is that a panel is remembered from the first time you collapse
+  // it — the toggling *is* the teaching, so there is nothing to configure.
+  const PANEL_STORE = 'bpk_panels';
+  const PANEL_VERSION = 2; // bump to discard everything learned by older logic
+  const PANEL_SETTLE_MS = 450; // a collapse animation has finished by here
+  const PANEL_MIN_DELTA = 40;  // px; below this it is a resize, not a collapse
+  const PANEL_WINDOW_MS = 15000; // stop restoring: after this it is the user's
+
+  // Geometric, not name-based: the left rail is the tall element pinned to the
+  // left edge, whatever Kick calls it this month. It stays full height when
+  // collapsed — only its width changes — so this finds it either way.
+  function findSidebar() {
+    let best = null;
+    for (const el of qsa(document, 'nav, aside, [class*="sidebar" i], [id*="sidebar" i]')) {
+      const r = el.getBoundingClientRect();
+      if (r.left > 120 || r.width === 0) continue;
+      if (r.height < window.innerHeight * 0.5) continue;
+      if (!best || r.height > best.h) best = { el, h: r.height };
+    }
+    return best ? best.el : null;
+  }
+
+  function findChatPanel() {
+    return document.querySelector(
+      '.bpk-chatroom, #chatroom, #chatroom-messages, [data-testid*="chatroom" i]'
+    );
+  }
+
+  const PANELS = [
+    { key: 'sidebar', find: findSidebar },
+    { key: 'chat', find: findChatPanel }
+  ];
+
+  // Absent counts as zero width, which is the point: a collapsed chat panel is
+  // usually unmounted rather than shrunk, and both read the same way here.
+  function panelWidth(el) {
+    if (!el || !el.isConnected) return 0;
+    return Math.round(el.getBoundingClientRect().width);
+  }
+
+  function panelSnapshot() {
+    const out = {};
+    for (const p of PANELS) out[p.key] = panelWidth(p.find());
+    return out;
+  }
+
+  function loadPanels() {
+    try {
+      const raw = localStorage.getItem(PANEL_STORE);
+      const map = raw ? JSON.parse(raw) : null;
+      if (!map || typeof map !== 'object') return { v: PANEL_VERSION };
+      // Anything learned before the navigation guards below is not just stale,
+      // it is actively harmful — the first version could learn a *link* as a
+      // panel toggle and then "restore" the panel by navigating. Drop it.
+      // The stamp has to be carried on every empty result too, or each save
+      // would write a map that the next load rejects as old.
+      if (map.v !== PANEL_VERSION) return { v: PANEL_VERSION };
+      return map;
+    } catch {
+      return { v: PANEL_VERSION };
+    }
+  }
+
+  function savePanels(map) {
+    try {
+      localStorage.setItem(PANEL_STORE, JSON.stringify(map));
+    } catch {
+      /* storage blocked */
+    }
+  }
+
+  // Only hooks that survive a re-render are worth storing. A structural path
+  // would be brittle in a way that stays invisible until it silently clicks
+  // the wrong thing, so a button without one of these is simply not learned.
+  function panelSig(el) {
+    const testid = el.getAttribute('data-testid');
+    if (testid) return '[data-testid="' + CSS.escape(testid) + '"]';
+    if (el.id) return '#' + CSS.escape(el.id);
+    const label = el.getAttribute('aria-label');
+    if (label) return '[aria-label="' + CSS.escape(label) + '"]';
+    const title = el.getAttribute('title');
+    if (title) return '[title="' + CSS.escape(title) + '"]';
+    return null;
+  }
+
+  // A collapse toggle never navigates. A link always does — and a link is
+  // exactly what must never be learned here, because "restoring" the panel
+  // would then mean following it. This is not hypothetical: clicking a stream
+  // from the browse grid takes the chat panel from 0 to full width, which
+  // reads as a perfect collapse-toggle signal, and the memory that produced
+  // sent you back to the stream every time you opened Browse.
+  function navigates(el) {
+    if (!el.matches('a[href], area[href]')) return false;
+    const href = el.getAttribute('href') || '';
+    return href !== '' && !href.startsWith('#');
+  }
+
+  function onPanelClick(e) {
+    if (!S.rememberPanels) return;
+    const el = e.target && e.target.closest ? e.target.closest('button, [role="button"], a') : null;
+    // Our own buttons are not Kick's panel toggles, and one of them sits in
+    // the chat footer where a toggle plausibly could.
+    if (!el || navigates(el) || el.closest('.bpk-ui')) return;
+    const sig = panelSig(el);
+    if (!sig) return;
+    const before = panelSnapshot();
+    const fromUrl = location.href;
+    setTimeout(() => {
+      // The page moved while we were waiting, so the two snapshots are of
+      // different layouts and the difference between them means nothing. Any
+      // width change here belongs to the navigation, not to a toggle.
+      if (location.href !== fromUrl) return;
+      const after = panelSnapshot();
+      const store = loadPanels();
+      let learned = false;
+      for (const p of PANELS) {
+        if (Math.abs(after[p.key] - before[p.key]) < PANEL_MIN_DELTA) continue;
+        store[p.key] = { sig, width: after[p.key], misses: 0 };
+        learned = true;
+        console.debug('[Better Kick panels] learned', p.key, sig, after[p.key] + 'px');
+      }
+      if (learned) savePanels(store);
+    }, PANEL_SETTLE_MS);
+  }
+
+  let panelRestoreClicks = 0;
+  let panelDeadline = 0;
+
+  function restorePanels() {
+    if (!S.rememberPanels || panelRestoreClicks >= 2) return;
+    if (panelDeadline && Date.now() > panelDeadline) return;
+    const store = loadPanels();
+    const now = panelSnapshot();
+
+    for (const p of PANELS) {
+      const mem = store[p.key];
+      if (!mem || !mem.sig) continue;
+      if (Math.abs(now[p.key] - mem.width) < PANEL_MIN_DELTA) continue;
+
+      // The toggle's presence is what says "this page has this panel". Testing
+      // for the panel itself cannot work: the state we most need to restore is
+      // the one where the panel is unmounted and has nothing to find.
+      let btn = null;
+      try {
+        btn = document.querySelector(mem.sig);
+      } catch {
+        continue; // stored selector no longer parses
+      }
+      if (!btn) continue;
+      // Second line of defence: even a stored signature can come to match a
+      // link after Kick reshuffles its markup, and following one would be a
+      // navigation the user never asked for.
+      if (navigates(btn)) {
+        const s = loadPanels();
+        delete s[p.key];
+        savePanels(s);
+        console.debug('[Better Kick panels] forgot', p.key, '— its toggle now resolves to a link');
+        continue;
+      }
+
+      panelRestoreClicks++;
+      const fromUrl = location.href;
+      console.debug('[Better Kick panels] restoring', p.key, 'to', mem.width + 'px', 'via', mem.sig);
+      qClick(btn);
+
+      setTimeout(() => {
+        const fresh = loadPanels();
+        if (!fresh[p.key]) return;
+        // Clicking it navigated. Whatever it is, it is not a panel toggle, and
+        // keeping it would repeat the navigation on every single page load.
+        if (location.href !== fromUrl) {
+          delete fresh[p.key];
+          savePanels(fresh);
+          console.debug('[Better Kick panels] forgot', p.key, '— clicking it navigated');
+          return;
+        }
+        const after = panelWidth(p.find());
+        if (Math.abs(after - mem.width) < PANEL_MIN_DELTA) {
+          fresh[p.key].misses = 0;
+          savePanels(fresh);
+          return;
+        }
+        // Clicking it did not do what it used to. Two strikes before the
+        // memory is dropped — one failure is more likely to be a page that
+        // happens to have a same-named button than a genuinely stale hook.
+        fresh[p.key].misses = (fresh[p.key].misses || 0) + 1;
+        if (fresh[p.key].misses >= 2) {
+          delete fresh[p.key];
+          console.debug('[Better Kick panels] forgot', p.key, '— its toggle no longer works');
+        }
+        savePanels(fresh);
+      }, PANEL_SETTLE_MS * 2);
     }
   }
 
@@ -1532,6 +2716,9 @@
       subtree: true,
       characterData: true,
       attributes: true,
+      // Needed to tell our own tagging apart from a class change Kick made —
+      // see ownClassChange().
+      attributeOldValue: true,
       // 'style' is deliberately not observed: repaint() writes inline styles,
       // and observing them would feed our own writes straight back in.
       // 'data-index' changes when Kick's virtual list recycles a row into a
@@ -1549,7 +2736,32 @@
       // the re-check costs a couple of frames every 4s on a visible page.
       if (!document.hidden) generation++;
       scan(document.body || document);
+      purpleFavicon();
+      restorePanels();
+      // React owns the chat footer and reconciles foreign children away, so
+      // the deleted-messages button is put back rather than mounted once.
+      mountLogButton();
     }, 4000);
+    // The footer mounts well after boot, and 4s of missing button reads as a
+    // broken feature — try on a short ramp first.
+    for (const delay of [600, 1500, 3000]) setTimeout(mountLogButton, delay);
+    // Panels: watch every click to learn the toggles, and try the restore on a
+    // short ramp — the rail and the chat panel mount at different times, and
+    // measuring either before it has laid out reads as "collapsed".
+    document.addEventListener('click', onPanelClick, true);
+    panelDeadline = Date.now() + PANEL_WINDOW_MS;
+    for (const delay of [800, 1800, 3200]) setTimeout(restorePanels, delay);
+    // Kick's head manager rewrites the icon link on navigation, so watch for
+    // it directly rather than waiting up to 4s for the sweep to notice.
+    if (document.head) {
+      new MutationObserver(() => purpleFavicon()).observe(document.head, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['href']
+      });
+    }
+    purpleFavicon();
     // Quality watchdog: whenever the playing stream is below 1080, switch it.
     setInterval(enforceQuality, 5000);
   }
@@ -1575,10 +2787,17 @@
         if (k in S) S[k] = newValue;
       }
       applyFlags();
-      // The logo swap is a src rewrite, not a CSS rule, so it is the one
-      // thing a flag change cannot undo on its own.
-      if (!S.purpleTheme) restoreLogos();
+      // The logo and favicon swaps are href/src rewrites, not CSS rules, so
+      // they are the two things a flag change cannot undo on its own.
+      if (!S.purpleTheme) {
+        restoreLogos();
+        restoreFavicon();
+        clearAllPaint();
+      }
+      if (S.deletedLog) mountLogButton();
+      else teardownLog();
       scan(document);
+      purpleFavicon();
     });
   } catch {
     boot(); // storage unavailable (e.g. sandboxed frame) — run with defaults

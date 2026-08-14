@@ -1,9 +1,184 @@
+<div align="center">
+
 # Better Kick
 
-A Chrome extension that strips Kick.com chat down to `username: plain text` and
-repaints the site in purple.
+**Kick.com chat, stripped down to `username: text`.**
 
-## What it does
+No emotes. No emoji. No badges. No gifs. No sub spam. No Kicks pop-ups.
+Just what people actually said — plus a log of everything the moderators deleted.
+
+[![version](https://img.shields.io/badge/version-1.0.0-9147ff?style=flat-square)](https://github.com/firatmelih/better-kick-chrome-extension/releases/latest)
+[![manifest](https://img.shields.io/badge/manifest-v3-9147ff?style=flat-square)](manifest.json)
+[![chromium](https://img.shields.io/badge/Chrome%20%C2%B7%20Edge%20%C2%B7%20Brave%20%C2%B7%20Opera-supported-9147ff?style=flat-square)](#install)
+
+</div>
+
+---
+
+## Before / after
+
+The same forty seconds of the same chat, with and without the extension.
+
+![Kick chat before and after Better Kick](docs/images/chat-before-after.png)
+
+**On the left**, roughly four real sentences make it to screen. Everything else is
+a pinned banner, a Kicks leaderboard, two sub events, a gift-sub event, a wall of
+emotes, three copies of the same scam copypasta and a gif.
+
+**On the right**, the same window of time — the noise never renders, so fifteen
+actual messages fit instead. Nothing is summarised or rewritten: emotes,
+badges, images and events are simply not there, and the text is untouched.
+
+> [!NOTE]
+> These panels are faithful mock-ups rendered from the extension's own
+> stylesheet, not screenshots of a live channel — Kick chat is a live stream of
+> other people's messages, and a real capture would put strangers' names and
+> words in a README permanently. The sources are in [`docs/mockups/`](docs/mockups)
+> if you want to re-render them.
+
+---
+
+## What you get
+
+|  | |
+|---|---|
+| 🧹 **Plain-text chat** | Emotes, emoji, badges, avatars, gifs, stickers, icons, embeds and link previews all go. What's left is `username: message`. |
+| 🕳️ **Emote-only rows vanish** | If someone sent nothing but emotes, there's no stranded `bob:` left behind — the whole row goes. |
+| 🔇 **No subs, gift subs or Kicks** | Sub buttons, upsells, "X gifted 5 subs", "Y sent 500 Kicks", the top-gifter marquee, the recent-Kicks pill bar. |
+| 🗑️ **Deleted-message log** | Every message a moderator removed, kept and readable — who wrote it, what it said, who took it down and why. |
+| 🔁 **Copypasta filter** | Once a line has been posted 10× in 10 minutes, that line and every later copy stop appearing. |
+| 📌 **No pinned, polls or raids** | Pinned messages, celebrations, confetti, announcements, predictions. |
+| 🟣 **Purple theme** | Kick's `#53FC18` becomes `#9147FF` — wordmark and browser-tab favicon included. |
+| 🎞️ **Locked to 1080p** | The player stays at 1080p across reloads, channel changes and stream restarts. |
+| 🪄 **Smooth chat scrolling** | Kick's auto-scroll is replaced with one that can't drift, plus a slim overlay scrollbar. |
+| 💾 **Remembers your layout** | Collapsed sidebar, collapsed chat and your Browse filters all come back the way you left them. |
+
+Everything above is a toggle, and every toggle applies live.
+
+---
+
+## The deleted-messages log
+
+A moderator removes a line and it's gone — Kick never tells the page what it
+said. So the extension catches the message **before** it is deleted: it keeps a
+small rolling cache of everything that came down the WebSocket and pairs it
+with the deletion event when that arrives.
+
+![The deleted messages window](docs/images/deleted-messages.png)
+
+A trash-can button sits in the chat footer next to the settings cog, with a
+badge counting what you haven't looked at. Clicking it opens the window above.
+
+It is careful about **who** it names, because Kick's own events are:
+
+- A plain delete event carries no moderator, so the entry says
+  *"by an unknown moderator"* rather than inventing one.
+- A **ban** event does name one, so the moderator, the punishment and the
+  messages it swept are all logged as fact.
+- When a ban lands within 15 seconds of an unattributed delete of the same
+  user, that name is backfilled and marked **(assumed)** — an attribution, not
+  a claim. Never onto an AutoMod removal, which already says who did it.
+- A message sent before you opened the tab reads *"(not captured)"* instead of
+  being guessed at.
+
+The log is per tab and per channel. Switching channels clears it, closing the
+tab forgets it, and nothing is ever written to disk or sent anywhere.
+
+---
+
+## Purple theme
+
+![Kick's green repainted purple](docs/images/purple-theme.png)
+
+Three mechanisms, because Kick's green lives in three places a stylesheet can't
+all reach: design tokens are overridden by CSS, anything still computing green
+at runtime is repainted (gradients, shadows and `::before` dots included), and
+the wordmark and favicon — separate files no stylesheet of ours can touch — are
+fetched, recoloured and handed back as `data:` URIs.
+
+The theme recolours accents only. It does not repaint the chat background.
+
+---
+
+## Install
+
+No Web Store listing — load it unpacked:
+
+1. Download the latest [`better-kick-1.0.0.zip`](https://github.com/firatmelih/better-kick-chrome-extension/releases/latest) and unzip it
+   (or `git clone` this repo).
+2. Open `chrome://extensions`.
+3. Turn on **Developer mode**, top right.
+4. Click **Load unpacked** and pick the folder.
+5. Open any `kick.com` page.
+
+Works in Chrome, Edge, Brave and Opera — anything Chromium with Manifest V3.
+The only permission it asks for is `storage`, for your toggles. It talks to no
+server and collects nothing.
+
+---
+
+## Options
+
+Click the extension icon. Every toggle applies live — no reload.
+
+<img src="docs/images/popup.png" alt="The Better Kick options popup" width="330" align="right" />
+
+| Option | Default | |
+|---|---|---|
+| Force 1080p | on | Locks the player to 1080p — restored on every reload |
+| Remember collapsed panels | on | Sidebar and chat come back the way you left them |
+| Remember browse filters | on | Language, sort and the rest come back next time you open Browse |
+| Smooth chat scrolling | on | Replaces Kick's auto-scroll and scrollbar with our own |
+| Plain text chat | on | Hides emotes, badges, images, icons, logos |
+| Strip emoji | on | Removes unicode emoji from message text |
+| Drop emote-only messages | on | Hides the row when nothing but emotes/emoji was sent |
+| Drop repeated messages | on | Once a line is posted 10× in 10 minutes, hides it and every later copy |
+| Deleted messages log | on | Adds the button by the chat cog |
+| Delete links entirely | **off** | See note below |
+| Kill subs, gift subs & Kicks | on | Buttons, prompts, sub/gift events, Kicks donations |
+| Hide drops & daily rewards | on | The daily-reward chest in the top bar, Drops in the sidebar |
+| Hide pinned & highlights | on | Pinned, celebrations, polls, raids |
+| No animations | on | Freezes chat transitions and effects |
+| Purple theme | on | Repaints Kick green as `#9147FF`, favicon included |
+| Flat usernames | off | One colour for every name |
+| Hide timestamps | off | Drops the time column |
+
+**About links:** by default a URL stays visible as plain, unclickable,
+uncoloured, unstyled text — it's still "plain text", just inert. Flip
+*Delete links entirely* if you'd rather the URL not appear at all.
+
+Toggling something **off** restores it live, except emoji: text already
+stripped from a message only comes back on reload.
+
+<br clear="right" />
+
+---
+
+## Troubleshooting
+
+Open the console on a `kick.com` tab and type:
+
+| | |
+|---|---|
+| `__bpkDiag()` | Start here. Prints which scripts loaded, every `data-bpk-*` flag, the browse memory, and a table of everything still painted green. |
+| `__bpkScroll.report()` | What the scroll takeover thinks is happening. `deadSpace` is the giveaway for a stale height model. |
+| `__bpkScroll.off()` | Hands the scroller back to Kick without touching your settings — an A/B on a live chat. |
+| `__bpkQuality.report()` | What quality is pinned and how often it had to be re-applied. |
+| `__bpkBrowse.report()` | What browse filters are remembered. `__bpkBrowse.forget()` wipes them. |
+
+If something you *wanted* disappeared, it's almost always *Kill subs, gift subs
+& Kicks* — those selectors match on substrings like `gift`, which is the price
+of catching sub UI that gets renamed every few months. Turn it off and the rest
+keeps working.
+
+---
+
+# Under the hood
+
+Everything below is the detailed version: what each feature actually does, why
+it's built the way it is, and which parts of Kick's DOM it depends on.
+
+## What it does, in detail
 
 **Chat becomes plain text.** Emotes, unicode emoji, badges, avatars, gifs,
 stickers, icons, logos, embeds and link previews are all gone. What's left is
@@ -80,6 +255,64 @@ and replaced with a slim overlay one that fades in while you're in chat and
 can be dragged. Scrolling up pauses following, as usual; the "N new messages"
 chip still works (its click is caught and performed by us).
 
+**Deleted messages are kept and readable.** A trash-can button sits in the
+chat footer next to Kick's settings cog, left of *Send*, with a badge counting
+what you haven't looked at. Clicking it opens a chat-shaped window over the
+message list: every message a moderator removed, who wrote it, what it said,
+when it went, why, and — where Kick's events say so — who took it down.
+
+It works because the message is caught **before** it is deleted. Once a
+moderator removes a line it is gone from the DOM and Kick never tells the page
+what it was, so `src/chatlog.js` keeps a small rolling cache of everything that
+came down the WebSocket (the same frames `chatfilter.js` already reads — one
+socket patch, one place) and pairs it with the deletion event when that
+arrives. Messages the extension itself filtered out are cached too, so a
+deleted emote-only line is still recoverable.
+
+What Kick's own events do and don't say, and therefore what the window can
+honestly claim:
+
+- `MessageDeletedEvent` carries the message id and, when Kick's
+  auto-moderation did it, an AI flag and the rules that were violated. It does
+  **not** name a moderator, so the entry reads *"by an unknown moderator"*
+  rather than inventing one.
+- `UserBannedEvent` **does** name one (`banned_by`), and a ban also takes the
+  user's messages off screen — so a ban logs the moderator, the punishment
+  (permanent, or the timeout's length) and the messages it swept, all as fact.
+- A moderator who deletes a message and then bans its author does both in one
+  action, seconds apart. When a ban lands within 15s of an unattributed delete
+  by the same user, that name is backfilled onto it and marked **(assumed)**,
+  with the reasoning in the row's tooltip. Never onto an AutoMod removal —
+  that one already says who did it, and it wasn't them.
+
+The log is per tab and per channel: switching channels clears it (one chat's
+deletions are not another's), closing the tab forgets it, and nothing is ever
+written to disk or sent anywhere. It holds the last 400 entries. *Clear* empties
+it on the spot.
+
+**Finding the footer** is its own problem: it has no id, its buttons are
+icon-only, their labels are localised, and the send button isn't reliably a
+`button[type="submit"]`. So the mount doesn't look for the send button at all
+— it works outward from the one thing in that footer that's unmistakable, the
+box you type in, climbs to the nearest row that holds a real button, and goes
+in left of the settings cog (or left of the last button, if the cog can't be
+told apart). The quick-emote strip is explicitly skipped, since plain-chat
+mode hides that whole row. If there's no composer at all — logged out, or a
+read-only chat — the button floats at the chat panel's top-right instead: a
+feature you can't reach is worse than one sitting slightly off. Which route
+was taken is written to `<html data-bpk-logmount>` (`cog`, `send`, `float`, or
+`none` for "no chat panel here"), printed by `__bpkDiag()` and logged once to
+the console.
+
+Two implementation notes, both the same lesson the rest of this extension
+learned the hard way. The window is `position: fixed` at `<body>` level over
+the chat's rect rather than a child of the chat, because React reconciles
+foreign children out of that subtree — the same reason the custom scrollbar
+lives there. The *button* has to be in the footer to sit next to the cog, so
+it is simply remounted whenever React drops it. And nothing in an entry is
+ever treated as markup: the page world can forge a `postMessage`, so every
+field goes into the DOM through `textContent`.
+
 **Subs, gift subs and Kicks disappear.** Subscribe buttons, gift-sub buttons,
 sub upsells, sub-only prompts, the "X gifted 5 subs" / "Y just subscribed"
 event lines in chat, plus Kicks (donation) UI: the recent-senders pill bar
@@ -118,6 +351,56 @@ retrying forever.
 
 `__bpkQuality.report()` in the page console shows what is pinned and how often
 it had to be re-applied; `__bpkQuality.pin('720p60')` locks a different rung.
+
+**Collapsed panels are remembered.** Kick holds the collapsed state of the
+left rail and the chat panel in React state and nowhere else, so every reload
+puts both back to their defaults. Nothing outside the app can set that state —
+the only way in is the toggle you click — which makes replaying a click the
+only mechanism available.
+
+Which button to replay is **learned, not hardcoded**, because neither toggle
+has a hook worth trusting: a collapse button's `aria-label` flips between
+"collapse" and "expand" as you use it, and the labels are localised on top of
+that. So when a click is followed by a panel changing width by more than 40px,
+that button is the toggle for that panel; it's stored along with the width you
+left the panel at, and on the next load, if the panel comes up materially
+different, the button is clicked once. Collapsing a panel is therefore also
+what teaches it — there's nothing to configure, but a panel isn't remembered
+until the first time you toggle it.
+
+Some details that matter:
+
+- **The panels are found geometrically**, not by name — the left rail is the
+  tall element pinned to the left edge, whatever Kick calls it this month. It
+  stays full height when collapsed, so this finds it in either state.
+- **An absent panel counts as zero width.** A collapsed chat panel is usually
+  unmounted rather than shrunk, and both need to read the same way.
+- **The toggle's presence is what says "this page has this panel"**, not the
+  panel's. Testing for the panel can't work: the state most in need of
+  restoring is the one where it's unmounted and there's nothing to find.
+- **Only stable hooks are learned** (`data-testid`, `id`, `aria-label`,
+  `title`). A structural path would be brittle in a way that stays invisible
+  until it silently clicks the wrong thing, so a button without one of those
+  is simply not learned.
+- **Nothing that navigates is ever learned or replayed.** A collapse toggle
+  never changes the URL; a link always does. This is the feature's sharpest
+  edge and it drew blood once: clicking a stream from the browse grid takes
+  the chat panel from 0 to full width, which reads as a textbook
+  collapse-toggle signal, so the first version learned the *stream card* as
+  the chat toggle — and then dutifully "restored" the chat panel by navigating
+  back to that stream every time you opened Browse. Three guards now: links
+  are skipped at learn time, a width change measured across a navigation is
+  discarded because the two snapshots are of different layouts, and at restore
+  time a stored signature that has come to resolve to a link is dropped rather
+  than clicked. If a click does navigate anyway, that entry is forgotten
+  immediately — otherwise it would repeat on every page load. The store
+  carries a version stamp so anything learned by the older logic is discarded
+  on sight.
+- **Two strikes before a memory is dropped.** If the click stops working the
+  entry is forgotten, but one failure is more likely a page that happens to
+  have a same-named button than a genuinely stale hook.
+- Restoring stops after two clicks or 15 seconds, whichever comes first, so it
+  can never undo a toggle you made yourself.
 
 **Browse filters are remembered.** Kick keeps the browse filters in the query
 string (`/browse?language=armenian&sort=viewers_high_to_low`), so a refresh
@@ -167,7 +450,26 @@ celebrations, confetti, announcements, raids, polls and predictions.
 
 **No animations** in the chat area.
 
-**Purple theme.** Kick's `#53FC18` green becomes `#9147FF`.
+**Purple theme.** Kick's `#53FC18` green becomes `#9147FF` — including the tab
+favicon. The icon is a separate file the page's CSS can't reach, and unlike
+the wordmark it isn't necessarily an SVG, so there are two routes: an SVG
+favicon reuses the wordmark's text rewrite and stays vector-sharp, while an
+`.ico` or `.png` is fetched, drawn to a canvas, recoloured pixel by pixel and
+handed back as a data URI. Same origin, so the canvas is never tainted and
+`getImageData` is allowed.
+
+The pixel test is deliberately looser than the one used for CSS values: there,
+the colour is exactly what a designer wrote; in a bitmap every edge pixel is a
+blend between the brand green and whatever sits behind it, and leaving those
+alone puts a green fringe around a purple icon. Transparent pixels are skipped
+and alpha is preserved, so antialiasing survives. If nothing in the file is
+green, Kick's own icon is left alone rather than being replaced with a copy.
+
+The `<link>` element's `href` is updated in place rather than the node being
+swapped out — Chrome re-reads a changed `href`, and leaving Next.js's own head
+nodes where they are keeps this clear of its head manager. A `MutationObserver`
+on `<head>` catches Kick rewriting the icon on navigation; the write is skipped
+when the href already matches, so that observer can't feed itself.
 This works two ways: a stylesheet overrides Kick's design tokens, and a runtime
 pass reads computed styles and repaints anything still coming out green —
 including gradients and shadows — so it holds up when Kick ships new class
@@ -185,44 +487,6 @@ actually says `kick-logo`, so a sponsor logo is never repainted wholesale. The
 original `src` is kept on the element, so switching the theme off puts the
 green wordmark straight back without a reload.
 
-## Install
-
-1. Open `chrome://extensions`
-2. Turn on **Developer mode** (top right)
-3. Click **Load unpacked** and pick this folder
-4. Open any `kick.com` page
-
-Works in Chrome, Edge, Brave, Opera — anything Chromium with Manifest V3.
-
-## Options
-
-Click the extension icon. Every toggle applies live, no reload needed.
-
-| Option | Default | |
-|---|---|---|
-| Force 1080p | on | Locks the player to 1080p — restored on every reload |
-| Remember browse filters | on | Language, sort and the rest come back next time you open Browse |
-| Smooth chat scrolling | on | Replaces Kick's auto-scroll and scrollbar with our own |
-| Plain text chat | on | Hides emotes, badges, images, icons, logos |
-| Strip emoji | on | Removes unicode emoji from message text |
-| Drop emote-only messages | on | Hides the row when nothing but emotes/emoji was sent |
-| Drop repeated messages | on | Once a line is posted 10× in 10 minutes, hides it and every later copy |
-| Delete links entirely | **off** | See note below |
-| Kill subs, gift subs & Kicks | on | Buttons, prompts, sub/gift events, Kicks donations |
-| Hide drops & daily rewards | on | The daily-reward chest in the top bar, Drops in the sidebar |
-| Hide pinned & highlights | on | Pinned, celebrations, polls, raids |
-| No animations | on | Freezes chat transitions and effects |
-| Purple theme | on | Repaints Kick green as `#9147FF` |
-| Flat usernames | off | One colour for every name |
-| Hide timestamps | off | Drops the time column |
-
-**About links:** by default a URL stays visible as plain, unclickable,
-uncoloured, unstyled text — it's still "plain text", just inert. Flip
-*Delete links entirely* if you'd rather the URL not appear at all.
-
-Toggling something **off** restores it live, except emoji: text already
-stripped from a message only comes back on reload.
-
 ## How it works
 
 `src/kick.css` does essentially all the hiding, gated on `data-bpk-*`
@@ -237,6 +501,8 @@ does what CSS can't:
 - fetch the Kick wordmark's SVG and hand it back recoloured
 - count identical messages over a rolling 10-minute window and tag the
   copypasta rows once a line crosses 10 posts
+- mount the deleted-messages button in the chat footer and draw its window
+  from what `chatlog.js` posts over
 - repaint green computed colours to purple
 
 **About repeated messages:** matching is on the *whole* message, so banning
@@ -251,14 +517,17 @@ is a virtualised React list that recycles DOM nodes, and node surgery there
 both fights the framework and can leave the wrong rows hidden after a recycle.
 Stateless selectors survive it.
 
-`src/quality.js`, `src/browse.js`, `src/chatfilter.js`, `src/chatscroll.js` and
-`src/diag.js` are the odd ones out: all five are declared with `"world": "MAIN"`,
+`src/quality.js`, `src/browse.js`, `src/chatlog.js`, `src/chatfilter.js`,
+`src/chatscroll.js` and `src/diag.js` are the odd ones out: all six are
+declared with `"world": "MAIN"`,
 so they run in the *page's* JS context rather than the extension's isolated
 one. That isn't a preference — an isolated-world script gets its own
 `Storage.prototype`, its own `history`, and its own JS wrappers for DOM nodes,
 so patching any of them there would only ever intercept our own calls, never
-Kick's. That rules out all three jobs: pinning `stream_quality`, seeing the
-SPA's `pushState`, and taking the chat scroller away from the virtual list.
+Kick's. That rules out all four jobs: pinning `stream_quality`, seeing the
+SPA's `pushState`, taking the chat scroller away from the virtual list, and
+patching `WebSocket` to read chat before Kick does — which is what both the
+message filter and the deleted-message log are built on.
 Each reads its on/off state from an `<html data-bpk-*>` attribute, since the
 two worlds share the DOM and nothing else.
 
@@ -300,6 +569,13 @@ isn't being intercepted at all; a high frame count with `dropped: 0` means
 Kick's event names have changed, and `__bpkFilter.spy()` logs every frame's
 event name and payload so they can be corrected.
 
+`__bpkLog.report()` does the same for the deleted-message log: whether it is
+recording, how many messages are cached and how many deletions it has logged.
+`__bpkLog.list()` dumps the entries as data. The two halves fail separately —
+no recorder means `chatlog.js` never ran, a recorder with no button means
+`content.js` couldn't find the chat footer to mount it in — and `__bpkDiag()`
+prints both.
+
 On a live channel, `__bpkScroll.report()` in the page console dumps what it
 thinks is going on — which element it took over, our bottom vs the native
 one (`deadSpace` is the giveaway for a stale height model), how many rows are
@@ -320,6 +596,16 @@ anything `content.js` exposes is in the isolated world and can't be typed at.
 Two things about the repaint pass that are easy to get wrong, both of which
 were once bugs here:
 
+- **The pass has to be reversible.** It used to only ever *add* inline styles,
+  which is fine while an element's colours are fixed and wrong the moment they
+  are not. Kick's browse tabs move the "active" classes from one `<a>` to the
+  next, so a tab that had just gone inactive kept the purple written for it and
+  carried on looking active — two tabs underlined at once. `repaint()` now
+  records which properties it wrote per element and takes them back off before
+  re-measuring. The order matters: clearing has to happen *before*
+  `getComputedStyle`, or the read returns our own purple and the element looks
+  like it was never green. The same bookkeeping makes turning the theme off
+  work without a reload.
 - **Elements are re-checked, not checked once.** Colours aren't settled the
   first time an element is seen — React restyles, a stylesheet lands late, a
   browse card hydrates into its live state — so a one-shot check left LIVE

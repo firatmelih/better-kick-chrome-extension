@@ -11,9 +11,11 @@ const DEFAULTS = {
   hideTimestamps: false,
   hideEmpty: true,
   hideRepeats: true,
+  deletedLog: true,
   force1080: true,
   smoothScroll: true,
-  rememberBrowse: true
+  rememberBrowse: true,
+  rememberPanels: true
 };
 
 const KEYS = Object.keys(DEFAULTS);

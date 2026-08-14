@@ -433,6 +433,13 @@ html[data-bpk-theme="on"] :root {
   --color-green: var(--bpk-purple) !important;
   --color-green-500: var(--bpk-purple) !important;
   --colors-green500: var(--bpk-purple) !important;
+  /* Kick's semantic layer sits on top of the raw green tokens; whichever of
+     these spellings is the real one, overriding it fixes the colour at source
+     rather than per element. */
+  --surface-onSurfacePrimary: var(--bpk-purple) !important;
+  --color-surface-onSurfacePrimary: var(--bpk-purple) !important;
+  --onSurfacePrimary: var(--bpk-purple) !important;
+  --color-onSurfacePrimary: var(--bpk-purple) !important;
   --primary: var(--bpk-purple) !important;
   --primary-500: var(--bpk-purple) !important;
   --color-primary: var(--bpk-purple) !important;
@@ -452,6 +459,26 @@ html[data-bpk-theme="on"] :root {
 html[data-bpk-theme="on"] body {
   background-color: var(--bpk-bg) !important;
   color: var(--bpk-text) !important;
+}
+
+/* Kick's semantic Tailwind tokens for "this is the active/primary thing" —
+   the browse tabs (Canlı Yayınlar / Kategoriler / Klipler) use all three: the
+   active <a> carries text- and border-, and its underline <div> carries bg-.
+   The runtime repaint catches them too, but only on the frame after React
+   moves the classes from one tab to the next, which is long enough to see as
+   a green flash. Matching the class token directly means the new tab is never
+   green at all. [class~=] compares whole tokens, so "border-transparent" on
+   the inactive tabs cannot match. */
+html[data-bpk-theme="on"] [class~="text-surface-onSurfacePrimary"] {
+  color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] [class~="border-surface-onSurfacePrimary"] {
+  border-color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] [class~="bg-surface-onSurfacePrimary"] {
+  background-color: var(--bpk-purple) !important;
 }
 
 /* Anything Kick painted with an inline brand-green value. */
@@ -541,6 +568,20 @@ html[data-bpk-theme="on"] .bpk-pa-fg::after {
 html[data-bpk-theme="on"] .bpk-pb-bd::before,
 html[data-bpk-theme="on"] .bpk-pa-bd::after {
   border-color: var(--bpk-purple) !important;
+}
+
+/* Worn only for the few microseconds repaint() needs to strip its own purple
+   off an element and read the colour underneath. That read forces a style
+   recalc, which commits the exposed green — and on anything Kick gave a colour
+   transition, the engine starts animating towards it, so the element flashed
+   purple -> green -> purple on every pass. Nothing that is not rendered can be
+   animated: with transitions off for the length of the measurement, the
+   intermediate state is never seen. The class is added and removed inside one
+   task, so it is never on screen. */
+html[data-bpk-theme="on"] .bpk-measuring,
+html[data-bpk-theme="on"] .bpk-measuring::before,
+html[data-bpk-theme="on"] .bpk-measuring::after {
+  transition: none !important;
 }
 
 /* ================================================================== */
@@ -753,4 +794,295 @@ html[data-bpk-drops="on"] [title*="ödül"],
    popup toggle still works without a reload. */
 html[data-bpk-drops="on"] .bpk-drop-hide {
   display: none !important;
+}
+
+/* ================================================================== */
+/* 13. DELETED MESSAGES LOG                                            */
+/* ================================================================== */
+
+/* The button lives inside Kick's chat footer, next to the settings cog, so
+   it has to look like it belongs there rather than like a foreign node:
+   transparent, current colour, the same 32px hit box as its neighbours.
+   `all: unset` is deliberately not used — it would also drop the button's
+   accessibility semantics. */
+/* The size and visibility properties are !important because this button is
+   dropped into a Tailwind footer whose utility classes we cannot see, and
+   because this file's own plain-chat rules hide svg and empty elements
+   fairly aggressively — the one thing that must never happen to this button
+   is quietly not being there. */
+.bpk-log-btn {
+  position: relative;
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  margin: 0 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--bpk-text-dim);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.bpk-log-btn svg {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Fallback mount: no composer to sit beside (logged out, read-only chat), so
+   the button floats over the chat panel's top-right corner instead.
+   content.js writes left/top every second. */
+.bpk-log-float {
+  position: fixed;
+  z-index: 2147483000;
+  background: rgba(0, 0, 0, 0.55) !important;
+  border: 1px solid var(--bpk-border) !important;
+  backdrop-filter: blur(2px);
+}
+
+.bpk-log-btn:hover,
+.bpk-log-btn.bpk-open {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--bpk-text);
+}
+
+html[data-bpk-theme="on"] .bpk-log-btn.bpk-open,
+html[data-bpk-theme="on"] .bpk-log-btn.bpk-has-new {
+  color: var(--bpk-purple);
+}
+
+/* Unread count. Positioned outside the icon's box so it never squashes the
+   footer row, and capped at "99+" by content.js. */
+.bpk-log-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--bpk-purple);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+html[data-bpk-theme="off"] .bpk-log-badge {
+  background: #e0245e;
+}
+
+/* The window itself: fixed at <body> level over the chat's rect, because
+   React reconciles foreign children out of the chat subtree (same reason
+   the scrollbar in section 11 lives there). content.js writes the four
+   position properties every 250ms while it is open. */
+.bpk-log {
+  position: fixed;
+  z-index: 2147483001;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--bpk-border);
+  border-radius: 8px;
+  background: var(--bpk-bg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  color: var(--bpk-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bpk-log.bpk-on {
+  display: flex;
+}
+
+.bpk-log-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bpk-border);
+  background: var(--bpk-bg-alt);
+}
+
+.bpk-log-title {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.bpk-log-n {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--bpk-bg-elev);
+  color: var(--bpk-text-dim);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.bpk-log-clear {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid var(--bpk-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--bpk-text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.bpk-log-clear:hover {
+  color: var(--bpk-text);
+  border-color: var(--bpk-text-dim);
+}
+
+.bpk-log-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--bpk-text-dim);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.bpk-log-x:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--bpk-text);
+}
+
+/* Scrolls on its own so the chat behind it keeps its scroll position; the
+   overlay scrollbar is styled to match the one chatscroll.js draws. */
+.bpk-log-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+}
+
+.bpk-log-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bpk-log-body::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.bpk-log-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* One entry, shaped like a chat line with its provenance underneath. */
+.bpk-log-row {
+  padding: 4px 10px 5px;
+  border-left: 2px solid transparent;
+  word-break: break-word;
+}
+
+.bpk-log-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+html[data-bpk-theme="on"] .bpk-log-row:hover {
+  border-left-color: var(--bpk-purple);
+}
+
+.bpk-log-time {
+  margin-right: 6px;
+  color: var(--bpk-text-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-bpk-notime="on"] .bpk-log-time {
+  display: none;
+}
+
+.bpk-log-user {
+  font-weight: 700;
+}
+
+html[data-bpk-mono="on"] .bpk-log-user {
+  color: var(--bpk-text) !important;
+}
+
+.bpk-log-sep {
+  margin-right: 4px;
+  color: var(--bpk-text-dim);
+}
+
+.bpk-log-text {
+  /* Deleted text is the point of the window, so it is the brightest thing
+     in it — everything else here is deliberately dimmer. */
+  color: var(--bpk-text);
+}
+
+.bpk-log-dim {
+  color: var(--bpk-text-dim);
+  font-style: italic;
+}
+
+/* Who took it down, when, and why. Reads as a caption, never as the
+   message — a moderator's name must not be mistakable for the author's. */
+.bpk-log-meta {
+  margin-top: 1px;
+  padding-left: 2px;
+  color: var(--bpk-text-dim);
+  font-size: 11px;
+}
+
+/* Bans and chat clears: one line, no message body. */
+.bpk-log-notice {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bpk-log-notice .bpk-log-say {
+  color: var(--bpk-text-dim);
+  font-size: 12px;
+}
+
+html[data-bpk-theme="on"] .bpk-log-notice {
+  border-left-color: var(--bpk-purple-deep);
+}
+
+.bpk-log-none,
+.bpk-log-foot {
+  padding: 10px;
+  color: var(--bpk-text-dim);
+  font-size: 11px;
+}
+
+.bpk-log-foot {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-top: 1px solid var(--bpk-border);
+  background: var(--bpk-bg-alt);
+}
+
+.bpk-log-none[hidden] {
+  display: none;
+}
+
+/* "No animations" means no animations here either. */
+html[data-bpk-anim="on"] .bpk-log,
+html[data-bpk-anim="on"] .bpk-log * {
+  transition: none !important;
+  animation: none !important;
 }

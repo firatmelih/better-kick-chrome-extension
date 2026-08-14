@@ -1,0 +1,101 @@
+<!doctype html>
+<!-- The deleted-messages window, built from the extension's real markup and
+     its real stylesheet (src/kick.css) — only the entries are invented. -->
+<html lang="en" data-bpk-theme="on" data-bpk-anim="on">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="../../src/kick.css">
+<style>
+  body { display: block; width: 452px; } .panel { height: 560px; }
+  .bpk-log { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; }
+  .stage { position: relative; }
+</style>
+</head>
+<body class="after-scope">
+
+<div class="wrap">
+  <div class="caption after">
+    <span class="dot"></span>Deleted messages
+    <span class="note">— what the moderator took down</span>
+  </div>
+
+  <div class="stage">
+    <div class="panel">
+      <div class="head">
+        <span class="t">Chat</span>
+        <span class="icons"><i></i><i class="round"></i><i></i></span>
+      </div>
+      <div class="list">
+        <div class="row"><span class="time">21:14</span><span class="name" style="color:#7de0ff">burakcan</span><span class="sep">: </span><span class="msg">wait what did he just say</span></div>
+        <div class="row"><span class="time">21:14</span><span class="name" style="color:#ff5fd2">ayse.k</span><span class="sep">: </span><span class="msg">mods are quick today</span></div>
+      </div>
+      <div class="foot">
+        <div class="box">Send a message</div>
+        <div class="tools">
+          <span class="trash"></span><span class="ico"></span>
+          <span class="spacer"></span>
+          <span class="send">Send</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- .bpk-log, exactly as content.js builds it -->
+    <div class="bpk-log bpk-on" style="left:34px; top:74px; width:384px; height:466px;">
+      <div class="bpk-log-head">
+        <span class="bpk-log-title">Deleted messages</span>
+        <span class="bpk-log-n">6</span>
+        <button class="bpk-log-clear">Clear</button>
+        <button class="bpk-log-x">&#10005;</button>
+      </div>
+
+      <div class="bpk-log-body">
+        <div class="bpk-log-row">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">21:13:58</span><span class="bpk-log-user" style="color:#ffcc3d">guest_9912</span><span class="bpk-log-sep">:</span><span class="bpk-log-text">check my profile for free skins bit.ly/xxxx</span>
+          </div>
+          <div class="bpk-log-meta">deleted 21:14:02 &middot; AutoMod &middot; link, scam</div>
+        </div>
+
+        <div class="bpk-log-row">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">21:13:41</span><span class="bpk-log-user" style="color:#ff6b6b">Sn1per</span><span class="bpk-log-sep">:</span><span class="bpk-log-text">bro just go watch the other stream then lol</span>
+          </div>
+          <div class="bpk-log-meta">deleted 21:13:49 &middot; by an unknown moderator</div>
+        </div>
+
+        <div class="bpk-log-row">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">21:12:20</span><span class="bpk-log-user" style="color:#b98bff">xX_troII_Xx</span><span class="bpk-log-sep">:</span><span class="bpk-log-text">say that to my face and not online see what happens</span>
+          </div>
+          <div class="bpk-log-meta">deleted 21:12:31 &middot; by elifm (assumed)</div>
+        </div>
+
+        <div class="bpk-log-row bpk-log-notice">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">21:12:33</span><span class="bpk-log-say">xX_troII_Xx was timed out for 10 minutes &middot; by elifm</span>
+          </div>
+        </div>
+
+        <div class="bpk-log-row">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">21:09:07</span><span class="bpk-log-user" style="color:#7bff9c">nova</span><span class="bpk-log-sep">:</span><span class="bpk-log-text bpk-log-dim">(emotes only)</span>
+          </div>
+          <div class="bpk-log-meta">deleted 21:09:15 &middot; by an unknown moderator</div>
+        </div>
+
+        <div class="bpk-log-row">
+          <div class="bpk-log-msg">
+            <span class="bpk-log-time">--:--:--</span><span class="bpk-log-user" style="color:#3ea8ff">tolga</span><span class="bpk-log-sep">:</span><span class="bpk-log-text bpk-log-dim">(not captured — it was sent before this tab was open)</span>
+          </div>
+          <div class="bpk-log-meta">removed 21:08:02 &middot; by mehmet.k &middot; permanent ban</div>
+        </div>
+      </div>
+
+      <div class="bpk-log-foot">Kept in this tab only — closing it forgets everything.</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

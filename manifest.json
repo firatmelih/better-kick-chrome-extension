@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Better Kick",
-  "version": "1.7.0",
-  "description": "Strips Kick chat to plain \"username: text\" — no emotes, emoji, badges, icons or gifs — kills sub/gift-sub/Kicks UI, drops and pinned messages, repaints Kick (logo included) in purple, keeps the player locked to 1080p, and remembers your browse filters.",
+  "version": "1.0.0",
+  "description": "Strips Kick chat to plain \"username: text\" — no emotes, emoji, badges, icons or gifs — logs deleted messages so you can read what a moderator removed, kills sub/gift-sub/Kicks UI, drops and pinned messages, repaints Kick (logo and favicon included) in purple, keeps the player locked to 1080p, remembers your browse filters, and keeps the sidebar and chat the way you left them.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -21,7 +21,14 @@
     },
     {
       "matches": ["*://*.kick.com/*"],
-      "js": ["src/quality.js", "src/browse.js", "src/chatfilter.js", "src/chatscroll.js", "src/diag.js"],
+      "js": [
+        "src/quality.js",
+        "src/browse.js",
+        "src/chatlog.js",
+        "src/chatfilter.js",
+        "src/chatscroll.js",
+        "src/diag.js"
+      ],
       "run_at": "document_start",
       "all_frames": true,
       "world": "MAIN"
