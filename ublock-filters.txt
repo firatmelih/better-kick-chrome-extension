@@ -1,0 +1,137 @@
+! ===================================================================
+! Better Kick — uBlock Origin filters
+! Paste into: uBO dashboard (puzzle icon) -> My filters -> Apply changes
+!
+! These work on their own; you do not need the extension for them.
+! Note: uBO can only hide whole ELEMENTS. It cannot delete emoji from
+! inside a line of text, so it removes emoji-only messages and the gaps
+! left by image wrappers, not emoji sitting in the middle of a sentence.
+! ===================================================================
+
+
+! -------------------------------------------------------------------
+! 1. Messages where nothing was actually said
+! -------------------------------------------------------------------
+! Matches a row whose text ends at the ":" separator with only emoji or
+! whitespace after it — emote-only, emoji-only and gif-only messages —
+! and hides the row, username included.
+! Works no matter what Kick calls its classes, and is unaffected by
+! badge screen-reader labels because those sit before the username.
+
+kick.com##[data-chat-entry]:has-text(/:[\s\p{Extended_Pictographic}️︎‍\u{1F3FB}-\u{1F3FF}]*$/u)
+
+! If uBO shows that line in red (older versions reject \p{...}), delete it
+! and use this instead — same behaviour, explicit ranges:
+! kick.com##[data-chat-entry]:has-text(/:[\s‍️←-⇿⌀-➿⬀-⯿\u{1F000}-\u{1FBFF}]*$/u)
+
+! If [data-chat-entry] is not what Kick uses (see "Check it worked"
+! below), delete both lines above and use this selector-free version.
+! The ^.{0,60} bound keeps it matching one row rather than the container:
+! kick.com##div:has-text(/^.{0,60}:[\s\p{Extended_Pictographic}️︎‍\u{1F3FB}-\u{1F3FF}]*$/u)
+
+
+! -------------------------------------------------------------------
+! 2. Emotes, badges and icons themselves
+! -------------------------------------------------------------------
+kick.com##[data-chat-entry] img
+kick.com##[data-chat-entry] svg
+kick.com##[data-chat-entry] picture
+kick.com##[data-chat-entry] video
+kick.com##[data-chat-entry] [data-emote-name]
+kick.com##[data-chat-entry] [data-emote-id]
+kick.com##[data-chat-entry] [role="img"]
+
+
+! -------------------------------------------------------------------
+! 3. The gap — wrappers that held those images
+! -------------------------------------------------------------------
+! Hiding an <img> leaves its wrapper span behind, and the wrapper keeps
+! its own width and margin. That is the "_ _ _ username:" spacing.
+! These hide the wrapper by class name.
+
+kick.com##[data-chat-entry] [class*="badge" i]
+kick.com##[data-chat-entry] [class*="emote" i]
+kick.com##[data-chat-entry] [class*="emoji" i]
+kick.com##[data-chat-entry] [class*="sticker" i]
+kick.com##[data-chat-entry] [class*="avatar" i]
+
+! Structural version, for wrappers whose class names are hashed. This
+! one is careful: it skips any wrapper containing letters or digits, so
+! a message that mixes text and an inline emote is never lost.
+kick.com##[data-chat-entry] span:has(> img):not(:has-text(/[A-Za-z0-9]/))
+kick.com##[data-chat-entry] span:has(> svg):not(:has-text(/[A-Za-z0-9]/))
+kick.com##[data-chat-entry] div:has(> span > img):not(:has-text(/[A-Za-z0-9]/))
+
+! STILL seeing gaps? Badges usually carry a hidden screen-reader label
+! ("Moderator"), which the :not() above treats as real text. Swap the
+! three lines above for these two — more thorough, but if a message ever
+! vanishes that shouldn't, go back.
+! kick.com##[data-chat-entry] span:has(> img)
+! kick.com##[data-chat-entry] span:has(> svg)
+
+
+! -------------------------------------------------------------------
+! 4. Collapse any leftover spacing on the row
+! -------------------------------------------------------------------
+kick.com##[data-chat-entry]:style(gap:0 !important; text-indent:0 !important)
+
+
+! -------------------------------------------------------------------
+! 5. Current Kick DOM (2025+)
+! -------------------------------------------------------------------
+! Kick rebuilt chat on Tailwind: rows are div[data-index] wrappers whose
+! body has an inline "font-size: var(--chatroom-font-size)" style, and
+! badges are div[data-testid="identity-badge-*"] around an svg. Hiding
+! only the svg leaves the wrapper's size-[...] box as a gap, so hide the
+! wrapper itself.
+
+kick.com##[data-testid*="identity-badge"]
+kick.com##[style*="--chatroom-font-size"] img
+kick.com##[style*="--chatroom-font-size"] svg
+kick.com##[style*="--chatroom-font-size"] video
+kick.com##[style*="--chatroom-font-size"] [data-emote-id]
+kick.com##[style*="--chatroom-font-size"] [data-emote-name]
+
+! Emote/emoji/gif-only rows in the new DOM (username-colour button, then
+! an aria-hidden ": " separator, then nothing readable):
+kick.com##div[data-index]:has-text(/:[\s\p{Extended_Pictographic}️︎‍\u{1F3FB}-\u{1F3FF}]*$/u)
+
+
+! -------------------------------------------------------------------
+! 6. Quick emotes, drops and the daily-reward chest
+! -------------------------------------------------------------------
+! The one-click emote strip above the chat box, and the flex column it
+! sits alone in (which keeps its own bottom padding once the strip is
+! gone, so it has to go too).
+kick.com###quick-emotes-holder
+kick.com##div:has(> #quick-emotes-holder):not(:has(> :not(#quick-emotes-holder)))
+
+! Drops in the sidebar and the "claim your daily reward" chest in the
+! top bar. The chest is icon-only, so its aria-label is the only text it
+! has — and that label is localised, hence the Turkish line.
+kick.com##a[href*="/drops"]
+kick.com##[aria-label*="Daily Reward" i]
+kick.com##[aria-label*="Ödül"]
+kick.com##[aria-label*="ödül"]
+! Sidebar entry by its own text, wrapper included:
+kick.com##nav a:has-text(/^\s*Drops\s*$/)
+
+! The green Kick wordmark is an <img> pointing at an SVG file, so its
+! colour lives in a document uBO cannot reach — repainting it purple is
+! the one thing here that needs the extension.
+
+
+! ===================================================================
+! Check it worked
+! ===================================================================
+! These filters assume rows are [data-chat-entry]. To confirm, open the
+! Kick tab, press F12, and paste this in the Console:
+!
+!   document.querySelectorAll('[data-chat-entry]').length
+!
+! A number above 0 means the filters target the right thing. If it is 0,
+! run this to find the real row selector and tell me what it prints:
+!
+!   const n=[...document.querySelectorAll('#chatroom-messages *')]
+!     .find(e=>/:\s*$/.test(e.textContent.trim()));
+!   console.log(n && n.outerHTML);

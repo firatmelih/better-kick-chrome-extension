@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Better Kick</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Better Kick</h1>
+      <p class="sub">Plain-text chat, no sub spam, purple theme.</p>
+    </header>
+
+    <ul class="opts">
+      <li>
+        <label for="force1080">
+          <span class="t">Force 1080p</span>
+          <span class="d">Lock the player to 1080p — restored on every reload</span>
+        </label>
+        <input type="checkbox" id="force1080" />
+      </li>
+      <li>
+        <label for="rememberBrowse">
+          <span class="t">Remember browse filters</span>
+          <span class="d">Language, sort and the rest come back next time you open Browse</span>
+        </label>
+        <input type="checkbox" id="rememberBrowse" />
+      </li>
+      <li>
+        <label for="smoothScroll">
+          <span class="t">Smooth chat scrolling</span>
+          <span class="d">Replace Kick's jumpy auto-scroll and its scrollbar with our own</span>
+        </label>
+        <input type="checkbox" id="smoothScroll" />
+      </li>
+      <li>
+        <label for="plainChat">
+          <span class="t">Plain text chat</span>
+          <span class="d">No emotes, badges, images, icons or logos</span>
+        </label>
+        <input type="checkbox" id="plainChat" />
+      </li>
+      <li>
+        <label for="stripEmoji">
+          <span class="t">Strip emoji</span>
+          <span class="d">Remove unicode emoji from message text</span>
+        </label>
+        <input type="checkbox" id="stripEmoji" />
+      </li>
+      <li>
+        <label for="removeLinks">
+          <span class="t">Delete links entirely</span>
+          <span class="d">Off = URLs stay as unclickable plain text</span>
+        </label>
+        <input type="checkbox" id="removeLinks" />
+      </li>
+      <li>
+        <label for="hideEmpty">
+          <span class="t">Drop emote-only messages</span>
+          <span class="d">If nothing but emotes/emoji was sent, hide the row</span>
+        </label>
+        <input type="checkbox" id="hideEmpty" />
+      </li>
+      <li>
+        <label for="hideRepeats">
+          <span class="t">Drop repeated messages</span>
+          <span class="d">Once a line is posted 10&times; in 10 minutes, hide it and every later copy</span>
+        </label>
+        <input type="checkbox" id="hideRepeats" />
+      </li>
+      <li>
+        <label for="hideSubs">
+          <span class="t">Kill subs, gift subs &amp; Kicks</span>
+          <span class="d">Buttons, prompts, sub/gift events and Kicks donations</span>
+        </label>
+        <input type="checkbox" id="hideSubs" />
+      </li>
+      <li>
+        <label for="hideDrops">
+          <span class="t">Hide drops &amp; daily rewards</span>
+          <span class="d">The daily-reward chest in the top bar and Drops in the sidebar</span>
+        </label>
+        <input type="checkbox" id="hideDrops" />
+      </li>
+      <li>
+        <label for="hidePinned">
+          <span class="t">Hide pinned &amp; highlights</span>
+          <span class="d">Pinned messages, celebrations, polls, raids</span>
+        </label>
+        <input type="checkbox" id="hidePinned" />
+      </li>
+      <li>
+        <label for="killAnimations">
+          <span class="t">No animations</span>
+          <span class="d">Freeze chat transitions and effects</span>
+        </label>
+        <input type="checkbox" id="killAnimations" />
+      </li>
+      <li>
+        <label for="purpleTheme">
+          <span class="t">Purple theme</span>
+          <span class="d">Repaint Kick green as #9147ff</span>
+        </label>
+        <input type="checkbox" id="purpleTheme" />
+      </li>
+      <li>
+        <label for="monoUsernames">
+          <span class="t">Flat usernames</span>
+          <span class="d">One colour for every name</span>
+        </label>
+        <input type="checkbox" id="monoUsernames" />
+      </li>
+      <li>
+        <label for="hideTimestamps">
+          <span class="t">Hide timestamps</span>
+          <span class="d">Drop the time column</span>
+        </label>
+        <input type="checkbox" id="hideTimestamps" />
+      </li>
+    </ul>
+
+    <footer>
+      <button id="reset" type="button">Reset defaults</button>
+      <span id="status" class="status"></span>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

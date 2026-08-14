@@ -1,0 +1,756 @@
+/* Better Kick — all hiding + theming lives here.
+ * Every rule is gated on an attribute that content.js writes to <html>,
+ * so each feature can be toggled from the popup without a reload.
+ * Hiding is done with CSS instead of DOM removal because Kick's chat list
+ * recycles nodes; stateless selectors survive that, node surgery does not. */
+
+:root {
+  --bpk-purple: #9147ff;
+  --bpk-purple-hover: #772ce8;
+  --bpk-purple-deep: #5c16c5;
+  --bpk-bg: #0e0e10;
+  --bpk-bg-alt: #18181b;
+  --bpk-bg-elev: #1f1f23;
+  --bpk-border: #2f2f35;
+  --bpk-text: #efeff1;
+  --bpk-text-dim: #adadb8;
+}
+
+/* generic hook used by content.js for text-matched elements */
+.bpk-hide {
+  display: none !important;
+}
+
+/* ================================================================== */
+/* 1. PLAIN TEXT CHAT                                                  */
+/* ================================================================== */
+
+/* Everything non-textual inside a chat line: emotes, badges, avatars,
+   gifs, stickers, svg icons, embeds, reaction art. */
+html[data-bpk-plain="on"] .bpk-entry img,
+html[data-bpk-plain="on"] .bpk-entry svg,
+html[data-bpk-plain="on"] .bpk-entry picture,
+html[data-bpk-plain="on"] .bpk-entry video,
+html[data-bpk-plain="on"] .bpk-entry canvas,
+html[data-bpk-plain="on"] .bpk-entry iframe,
+html[data-bpk-plain="on"] .bpk-entry object,
+html[data-bpk-plain="on"] .bpk-entry embed,
+html[data-bpk-plain="on"] .bpk-entry figure,
+html[data-bpk-plain="on"] .bpk-entry [role="img"],
+html[data-bpk-plain="on"] .bpk-entry [data-emote-name],
+html[data-bpk-plain="on"] .bpk-entry [data-emote-id],
+html[data-bpk-plain="on"] .bpk-entry [data-emoji],
+html[data-bpk-plain="on"] .bpk-entry [class*="emote" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="emoji" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="badge" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="sticker" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="avatar" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="gif" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="icon" i]:empty,
+html[data-bpk-plain="on"] .bpk-entry [class*="logo" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="verified" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="moderator" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="og-badge" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="reaction" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="preview" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="embed" i],
+html[data-bpk-plain="on"] .bpk-entry [data-testid*="badge" i],
+html[data-bpk-plain="on"] .bpk-entry [data-testid*="emote" i],
+html[data-bpk-plain="on"] .bpk-entry [data-testid*="sticker" i] {
+  display: none !important;
+}
+
+/* Same hide list keyed on the page itself instead of JS tagging, so plain
+   chat still holds if row detection ever misses. Current Kick (2025+) rows
+   are [data-index] wrappers whose body carries an inline
+   "font-size: var(--chatroom-font-size)" style, and the list keeps its
+   #chatroom-messages id. Badges are div[data-testid="identity-badge-*"]
+   wrappers around an svg — hiding only the svg leaves the wrapper's
+   size-[...] box behind as a gap, so the wrapper itself must go.
+   (:is() ignores the :has() member on engines without :has support.) */
+html[data-bpk-plain="on"]
+  :is(#chatroom-messages,
+      [data-index][style*="--chatroom-font-size"],
+      [data-index]:has([style*="--chatroom-font-size"]))
+  :is(img, svg, picture, video, canvas, iframe, object, embed, figure,
+      [role="img"], [data-emote-name], [data-emote-id], [data-emoji],
+      [data-testid*="badge" i], [data-testid*="emote" i],
+      [data-testid*="sticker" i],
+      [class*="emote" i], [class*="emoji" i], [class*="badge" i],
+      [class*="sticker" i], [class*="avatar" i], [class*="gif" i],
+      [class*="logo" i], [class*="verified" i], [class*="moderator" i],
+      [class*="reaction" i], [class*="preview" i], [class*="embed" i]) {
+  display: none !important;
+}
+
+/* The badge GROUP (div.flex.gap-1.pr-1 holding the badge wrappers) keeps its
+   own gap and padding once the badges inside are hidden. The JS blank-collapse
+   removes it too, but this closes the gap even before JS has run. Subscriber
+   badges are a bare <img> from the badge CDN with no data-testid at all, so
+   the structural div[data-state]>img shape is matched as well. Guarded so a
+   group that also holds the username button or a link is never touched. */
+html[data-bpk-plain="on"]
+  :is(.bpk-entry, #chatroom-messages, [data-index][style*="--chatroom-font-size"])
+  div:is(:has(> [data-testid*="identity-badge" i]),
+         :has(> [data-state] img),
+         :has(> div [data-state] img)):not(:has(button, a, input, textarea)) {
+  display: none !important;
+}
+
+/* Badge art itself, keyed on Kick's CDN paths — works with zero JS. */
+html[data-bpk-plain="on"] img[src*="/badges/" i],
+html[data-bpk-plain="on"] .bpk-entry img[src*="/emotes/" i],
+html[data-bpk-plain="on"] #chatroom-messages img[src*="/emotes/" i] {
+  display: none !important;
+}
+
+/* Flatten the line itself: no card, no border, no tint, no shadow. */
+html[data-bpk-plain="on"] .bpk-entry {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  text-shadow: none !important;
+  padding: 2px 10px !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  line-height: 1.45 !important;
+  color: var(--bpk-text) !important;
+}
+
+html[data-bpk-plain="on"] .bpk-entry *:not(.bpk-hide) {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-style: normal !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+}
+
+/* Username stays bold so the line still parses at a glance. */
+html[data-bpk-plain="on"] .bpk-entry .chat-entry-username,
+html[data-bpk-plain="on"] .bpk-entry [class*="identity" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="username" i] {
+  font-weight: 700 !important;
+  cursor: default !important;
+}
+
+/* Anything in a row that renders no text — badge wrappers, emote containers,
+   avatar slots — collapses completely. Hiding only the inner <img> would leave
+   the wrapper's width and margin behind as "_ _ _ username:". */
+html[data-bpk-plain="on"] .bpk-entry .bpk-blank {
+  display: none !important;
+}
+
+/* Same idea, for leaf decorations styled purely with CSS (background-image,
+   fixed width) and no children at all. :empty ignores whitespace-only spans,
+   which are real spacers and must survive. */
+html[data-bpk-plain="on"] .bpk-entry *:empty:not(br):not(input):not(textarea) {
+  display: none !important;
+}
+
+/* Nothing in a plain-text row should reserve space for art that is gone. */
+html[data-bpk-plain="on"] .bpk-entry [class*="badge" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="emote" i],
+html[data-bpk-plain="on"] .bpk-entry [class*="avatar" i] {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+}
+
+/* A row whose message was nothing but emotes/emoji/gifs has no text left, so
+   the username would sit there alone: content.js tags it .bpk-empty and it
+   goes. Copypasta rows (.bpk-repeat) and sub/gift/Kicks event rows
+   (.bpk-hide-row) go the same way. All three are collapsed by ONE rule, in
+   section 10 — how a chat row is removed is the single most delicate thing
+   in this file and it must not drift between the three cases. */
+
+/* Injected ":" for when Kick's own separator node was one of the ones we hid.
+   Lives in ::after so it never shows up in textContent. */
+html[data-bpk-plain="on"] .bpk-colon::after {
+  content: ":";
+  color: var(--bpk-text-dim);
+}
+
+/* Chat input side: emote picker, gif picker, sticker tray. */
+html[data-bpk-plain="on"] .bpk-chatroom [class*="emote-picker" i],
+html[data-bpk-plain="on"] .bpk-chatroom [class*="emoji-picker" i],
+html[data-bpk-plain="on"] .bpk-chatroom [class*="gif-picker" i],
+html[data-bpk-plain="on"] .bpk-chatroom [class*="sticker" i],
+html[data-bpk-plain="on"] [data-testid*="emote" i],
+html[data-bpk-plain="on"] [data-testid*="emoji" i],
+html[data-bpk-plain="on"] [aria-label*="emote" i],
+html[data-bpk-plain="on"] [aria-label*="emoji" i],
+html[data-bpk-plain="on"] [aria-label*="gif" i] {
+  display: none !important;
+}
+
+/* Kick's quick-emote strip above the chat input: a row of one-click emote
+   buttons (#quick-emotes-holder), which is the exact thing plain-text mode
+   exists to remove. Its height is set inline on the holder, so nothing short
+   of display:none closes it. The strip sits alone inside a flex column that
+   carries its own gap and bottom padding, and that column would stay behind
+   as a thin bar — the :has() rule drops it too, but only while the strip is
+   the only thing it holds, so a future sibling there is never swallowed. */
+html[data-bpk-plain="on"] #quick-emotes-holder,
+html[data-bpk-plain="on"] [id*="quick-emote" i] {
+  display: none !important;
+}
+
+html[data-bpk-plain="on"]
+  :is(div:has(> #quick-emotes-holder):not(:has(> :not(#quick-emotes-holder)))) {
+  display: none !important;
+}
+
+/* ================================================================== */
+/* 2. LINKS                                                            */
+/* ================================================================== */
+
+/* Default: keep the URL readable but strip everything link-ish about it —
+   not clickable, not coloured, no underline, no unfurl/preview. */
+html[data-bpk-plain="on"] .bpk-entry a {
+  color: inherit !important;
+  text-decoration: none !important;
+  pointer-events: none !important;
+  cursor: default !important;
+  font-weight: inherit !important;
+}
+
+/* Opt-in: drop link text entirely. */
+html[data-bpk-nolinks="on"] .bpk-entry a {
+  display: none !important;
+}
+
+/* ================================================================== */
+/* 3. SUBSCRIBE / GIFT SUB                                             */
+/* ================================================================== */
+
+html[data-bpk-subs="on"] [class*="subscribe" i],
+html[data-bpk-subs="on"] [class*="subscription" i],
+html[data-bpk-subs="on"] [class*="subscriber" i],
+html[data-bpk-subs="on"] [class*="sub-gift" i],
+html[data-bpk-subs="on"] [class*="giftsub" i],
+html[data-bpk-subs="on"] [class*="gift-sub" i],
+html[data-bpk-subs="on"] [class*="gift" i],
+html[data-bpk-subs="on"] [id*="subscribe" i],
+html[data-bpk-subs="on"] [id*="gift" i],
+html[data-bpk-subs="on"] [data-testid*="subscribe" i],
+html[data-bpk-subs="on"] [data-testid*="subscription" i],
+html[data-bpk-subs="on"] [data-testid*="gift" i],
+/* The real subscribe button is data-testid="sub-button" — no "subscribe"
+   anywhere in it, and its only text is localised ("Abone Ol" on a Turkish
+   account), so neither the testid rules above nor the English label matching
+   in content.js could see it. Matched on the exact testid rather than
+   [*="sub" i], which would also take "sub-count", "subject", "submit". */
+html[data-bpk-subs="on"] [data-testid*="sub-button" i],
+html[data-bpk-subs="on"] [data-testid*="sub_button" i],
+html[data-bpk-subs="on"] [aria-label*="subscribe" i],
+html[data-bpk-subs="on"] [aria-label*="gift a sub" i],
+html[data-bpk-subs="on"] [aria-label*="gift sub" i],
+html[data-bpk-subs="on"] [title*="subscribe" i],
+html[data-bpk-subs="on"] [title*="gift sub" i],
+html[data-bpk-subs="on"] [href*="/subscribe" i],
+html[data-bpk-subs="on"] [href*="subscription" i] {
+  display: none !important;
+}
+
+/* The gift-sub leaderboard: a scrolling marquee of "top gifter" ranks above
+   chat. Nothing in it says "gift" in a class or a testid — the ranks are
+   <img src="/img/gift-ranks/gift-rank-N.png"> and the animation class is
+   "animate-leaderboards-marquee" — so the section-3 rules above all miss it. */
+html[data-bpk-subs="on"] button[aria-label*="leaderboard" i],
+html[data-bpk-subs="on"] [class*="leaderboard" i],
+html[data-bpk-subs="on"] img[src*="/gift-ranks/" i],
+html[data-bpk-subs="on"] img[alt*="gift rank" i] {
+  display: none !important;
+}
+
+/* Hiding the button alone leaves its two wrappers behind as an empty 33px
+   strip (the height is inline on the inner one), so :has() walks up to them.
+   Separate rule, wrapped in :is(), so an engine without :has() drops only
+   this instead of the whole list above. */
+html[data-bpk-subs="on"]
+  :is(div:has(> button[aria-label*="leaderboard" i]),
+      div:has(> div > button[aria-label*="leaderboard" i])) {
+  display: none !important;
+}
+
+/* Sub-only mode banners and upsell rails in chat. */
+html[data-bpk-subs="on"] .bpk-chatroom [class*="upsell" i],
+html[data-bpk-subs="on"] .bpk-chatroom [class*="paywall" i],
+html[data-bpk-subs="on"] .bpk-chatroom [class*="sub-only" i],
+html[data-bpk-subs="on"] .bpk-chatroom [class*="subonly" i] {
+  display: none !important;
+}
+
+/* Sub/gift/Kicks event ROWS inside the message list are tagged
+   .bpk-hide-row by content.js and collapsed by the shared row rule in
+   section 10. */
+
+/* Kicks (donation) UI. Labelled bits first. */
+html[data-bpk-subs="on"] [data-testid*="kicks" i]:not(.bpk-entry),
+html[data-bpk-subs="on"] [aria-label*="kicks" i]:not(.bpk-entry),
+html[data-bpk-subs="on"] [class*="kicks" i]:not(.bpk-entry),
+html[data-bpk-subs="on"] img[src*="/kicks/" i],
+/* The "recent Kicks" sender pills above chat carry no label at all — their
+   only stable hook is the inline Kicks-pink border rgb(253, 114, 184). */
+html[data-bpk-subs="on"] button[style*="border-color: rgb(253, 114, 184)"] {
+  display: none !important;
+}
+
+/* The bar holding those pills (a bare Tailwind flex div) would stay behind as
+   an empty 36px strip — :has() walks up to it. Wrapped in :is() so engines
+   without :has() ignore just this rule instead of a whole selector list. */
+html[data-bpk-subs="on"]
+  :is(div:has(> button[style*="border-color: rgb(253, 114, 184)"]),
+      div:has(> div > button[style*="border-color: rgb(253, 114, 184)"])) {
+  display: none !important;
+}
+
+/* A chat ROW celebrating a Kicks purchase (pink gradient / kicks art inside
+   the message list). The username button also carries an inline color, so a
+   plain [style*=pink] would false-positive on pink-named users; require the
+   gradient or the kicks art. Collapsed the same way as every other row — it
+   used to be visibility:hidden, which left a full-height blank gap. */
+html[data-bpk-subs="on"]
+  :is(.bpk-entry:has([style*="linear-gradient"][style*="253, 114, 184"]),
+      .bpk-entry:has(img[src*="kicks" i])) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  /* The collapse must be instant even with "No animations" turned off: a
+     height transition here would animate every dropped row shut, which is
+     the flicker again, only slower. */
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ================================================================== */
+/* 4. PINNED / HIGHLIGHTS / CELEBRATIONS                               */
+/* ================================================================== */
+
+html[data-bpk-pinned="on"] #pinned-message,
+html[data-bpk-pinned="on"] [class*="pinned" i],
+html[data-bpk-pinned="on"] [class*="pin-message" i],
+html[data-bpk-pinned="on"] [data-testid*="pinned" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="highlight" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="celebration" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="confetti" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="announcement" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="shoutout" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="hype" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="raid" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="reward" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="banner" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="poll" i],
+html[data-bpk-pinned="on"] .bpk-chatroom [class*="prediction" i] {
+  display: none !important;
+}
+
+/* A highlighted line that survives selector matching still gets flattened. */
+html[data-bpk-pinned="on"] .bpk-entry[class*="highlight" i],
+html[data-bpk-pinned="on"] .bpk-entry[class*="celebration" i] {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+}
+
+/* ================================================================== */
+/* 5. ANIMATIONS                                                       */
+/* ================================================================== */
+
+html[data-bpk-anim="on"] .bpk-chatroom,
+html[data-bpk-anim="on"] .bpk-chatroom *,
+html[data-bpk-anim="on"] .bpk-entry,
+html[data-bpk-anim="on"] .bpk-entry * {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+/* NB: `transform` is deliberately left alone — virtualised chat lists use
+   translateY() for positioning, and clearing it collapses the list. */
+
+/* ================================================================== */
+/* 6. TIMESTAMPS                                                       */
+/* ================================================================== */
+
+html[data-bpk-notime="on"] .bpk-entry [class*="timestamp" i],
+html[data-bpk-notime="on"] .bpk-entry [class*="time-stamp" i],
+html[data-bpk-notime="on"] .bpk-entry [data-testid*="timestamp" i],
+html[data-bpk-notime="on"] .bpk-entry time,
+/* Current Kick: the timestamp span has no telling class; its inline style
+   references this visibility variable instead. */
+html[data-bpk-notime="on"] .bpk-entry [style*="--chatroom-timestamps-display" i],
+html[data-bpk-notime="on"] #chatroom-messages [style*="--chatroom-timestamps-display" i],
+html[data-bpk-notime="on"] [data-index][style*="--chatroom-font-size"] [style*="--chatroom-timestamps-display" i] {
+  display: none !important;
+}
+
+/* ================================================================== */
+/* 7. FLAT USERNAMES                                                   */
+/* ================================================================== */
+
+html[data-bpk-mono="on"] .bpk-entry .chat-entry-username,
+html[data-bpk-mono="on"] .bpk-entry [class*="identity" i],
+html[data-bpk-mono="on"] .bpk-entry [class*="username" i],
+html[data-bpk-mono="on"] .bpk-entry [class*="identity" i] * {
+  color: var(--bpk-text) !important;
+}
+
+/* ================================================================== */
+/* 8. TWITCH PURPLE THEME                                              */
+/* ================================================================== */
+
+/* Kick's design tokens, guessed broadly. Anything these miss is caught at
+   runtime by the computed-style repaint pass in content.js. */
+html[data-bpk-theme="on"],
+html[data-bpk-theme="on"] body,
+html[data-bpk-theme="on"] :root {
+  --kick-green: var(--bpk-purple) !important;
+  --kick-green-500: var(--bpk-purple) !important;
+  --green: var(--bpk-purple) !important;
+  --green-400: var(--bpk-purple) !important;
+  --green-500: var(--bpk-purple) !important;
+  --green-600: var(--bpk-purple-hover) !important;
+  --color-green: var(--bpk-purple) !important;
+  --color-green-500: var(--bpk-purple) !important;
+  --colors-green500: var(--bpk-purple) !important;
+  --primary: var(--bpk-purple) !important;
+  --primary-500: var(--bpk-purple) !important;
+  --color-primary: var(--bpk-purple) !important;
+  --brand: var(--bpk-purple) !important;
+  --brand-primary: var(--bpk-purple) !important;
+  --accent: var(--bpk-purple) !important;
+  --color-accent: var(--bpk-purple) !important;
+  --accent-color: var(--bpk-purple) !important;
+  --ring: var(--bpk-purple) !important;
+  --link: var(--bpk-purple) !important;
+  --color-link: var(--bpk-purple) !important;
+  --highlight: var(--bpk-purple) !important;
+  accent-color: var(--bpk-purple);
+  color-scheme: dark;
+}
+
+html[data-bpk-theme="on"] body {
+  background-color: var(--bpk-bg) !important;
+  color: var(--bpk-text) !important;
+}
+
+/* Anything Kick painted with an inline brand-green value. */
+html[data-bpk-theme="on"] [style*="53fc18" i],
+html[data-bpk-theme="on"] [style*="83, 252, 24"],
+html[data-bpk-theme="on"] [style*="00e701" i],
+html[data-bpk-theme="on"] [style*="53FC18"] {
+  color: var(--bpk-purple) !important;
+  border-color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] ::selection {
+  background: var(--bpk-purple) !important;
+  color: #fff !important;
+}
+
+html[data-bpk-theme="on"] :focus-visible {
+  outline-color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] * {
+  scrollbar-color: var(--bpk-purple-deep) var(--bpk-bg-alt);
+}
+
+html[data-bpk-theme="on"] ::-webkit-scrollbar-thumb {
+  background: var(--bpk-purple-deep) !important;
+  border-radius: 8px;
+}
+
+html[data-bpk-theme="on"] ::-webkit-scrollbar-track {
+  background: var(--bpk-bg-alt) !important;
+}
+
+/* Primary actions read as themed buttons. */
+html[data-bpk-theme="on"] button[type="submit"],
+html[data-bpk-theme="on"] [class*="btn-primary" i],
+html[data-bpk-theme="on"] [class*="button-primary" i],
+html[data-bpk-theme="on"] [class*="follow" i]:not([class*="following" i]) {
+  background-color: var(--bpk-purple) !important;
+  border-color: var(--bpk-purple) !important;
+  color: #fff !important;
+}
+
+html[data-bpk-theme="on"] button[type="submit"]:hover,
+html[data-bpk-theme="on"] [class*="btn-primary" i]:hover,
+html[data-bpk-theme="on"] [class*="button-primary" i]:hover {
+  background-color: var(--bpk-purple-hover) !important;
+}
+
+/* NB: the chat panel's own background is deliberately left alone — the theme
+   recolours accents only, it must not repaint the chatroom. */
+html[data-bpk-theme="on"] .bpk-entry {
+  color: var(--bpk-text) !important;
+}
+
+/* Live pill and other brand-green chips. The runtime repaint catches these by
+   computed colour wherever they are, but matching them here as well means the
+   browse grid is right on the very first paint rather than a frame later. */
+html[data-bpk-theme="on"] [class*="live" i][class*="badge" i],
+html[data-bpk-theme="on"] [class*="live-indicator" i],
+html[data-bpk-theme="on"] [class*="live" i][class*="pill" i],
+html[data-bpk-theme="on"] [class*="live" i][class*="tag" i],
+html[data-bpk-theme="on"] [class*="live" i][class*="chip" i],
+html[data-bpk-theme="on"] [class*="livebadge" i],
+html[data-bpk-theme="on"] [data-live="true"],
+html[data-bpk-theme="on"] [class*="isLive" i] {
+  background-color: var(--bpk-purple) !important;
+  border-color: var(--bpk-purple) !important;
+  color: #fff !important;
+}
+
+/* Pseudo-element greens.
+   ::before / ::after take no inline style and getComputedStyle(el) does not
+   report them, so repaint() in content.js cannot touch them directly. It tags
+   the host element instead — one class per pseudo per property group — and the
+   recolouring happens here. The dot on a LIVE pill is the usual case. */
+html[data-bpk-theme="on"] .bpk-pb-bg::before,
+html[data-bpk-theme="on"] .bpk-pa-bg::after {
+  background-color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] .bpk-pb-fg::before,
+html[data-bpk-theme="on"] .bpk-pa-fg::after {
+  color: var(--bpk-purple) !important;
+}
+
+html[data-bpk-theme="on"] .bpk-pb-bd::before,
+html[data-bpk-theme="on"] .bpk-pa-bd::after {
+  border-color: var(--bpk-purple) !important;
+}
+
+/* ================================================================== */
+/* 9. FORCE 1080p                                                      */
+/* ================================================================== */
+
+/* While content.js walks the player's settings menu to click the 1080p
+   option, the menu (a Radix portal at body level) is made invisible so the
+   automation never flashes on screen. Clicks still land on opacity:0. */
+html[data-bpk-qwork="on"] [role="menu"],
+html[data-bpk-qwork="on"] [data-radix-popper-content-wrapper],
+html[data-bpk-qwork="on"] [data-radix-menu-content] {
+  opacity: 0 !important;
+}
+
+/* ================================================================== */
+/* 10. ROW COLLAPSE                                                    */
+/* ================================================================== */
+
+/* How a dropped chat row is removed — the single most delicate rule here,
+   and the reason the chat used to flicker.
+ *
+ * NOT `display: none`. Kick's chat list is virtualised: it measures each row
+ * and remembers the height. A display:none row has no box and no
+ * offsetParent, so a measurement of it is either skipped or impossible —
+ * the list keeps the height it remembers for a row that now occupies
+ * nothing. Its model and the DOM disagree from that moment on, and every
+ * scroll position it computes off that model is wrong: it aims past the
+ * real end, decides it is not at the bottom, re-renders the wrong window of
+ * rows, repositions them, and does it again. That is the flicker, and no
+ * amount of scroll correction on our side can fix it, because the list is
+ * the thing moving the rows.
+ *
+ * Zero height instead. The row keeps its box and its offsetParent, so it is
+ * still measurable — a ResizeObserver on it fires, and a fresh measurement
+ * reads 0. Kick's model gets to be right, which is what lets it recalculate
+ * around our dropping instead of fighting it. Visually identical to
+ * display:none: no gap, nothing painted, nothing clickable.
+ *
+ * `min-height: 0` is not optional — a flex item defaults to `min-height:
+ * auto`, which would hold the row open at its content height and give back
+ * exactly the gap this is avoiding. `display` is deliberately left alone, so
+ * a row that is a flex or grid container stays one.
+ *
+ * See also content.js setRowClass(): a row's first-ever tagging applies
+ * instantly, but re-tagging an already-painted row waits until the verdict
+ * holds steady, so Kick's own attribute churn can't flap this on and off. */
+html[data-bpk-empty="on"] .bpk-entry.bpk-empty,
+html[data-bpk-repeat="on"] .bpk-entry.bpk-repeat,
+html[data-bpk-subs="on"] .bpk-entry.bpk-hide-row {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  /* The collapse must be instant even with "No animations" turned off: a
+     height transition here would animate every dropped row shut, which is
+     the flicker again, only slower. */
+  transition: none !important;
+  animation: none !important;
+}
+
+/* The list measures its own [data-index] wrapper, so if content.js tagged
+   something nested inside that wrapper, the wrapper is what has to collapse
+   — otherwise its padding survives as a thin stripe and, worse, its
+   measured height never changes. Wrapped in :is() so engines without :has()
+   drop just this rule rather than the whole list above. */
+html[data-bpk-empty="on"] :is([data-index]:has(> .bpk-entry.bpk-empty)),
+html[data-bpk-repeat="on"] :is([data-index]:has(> .bpk-entry.bpk-repeat)),
+html[data-bpk-subs="on"] :is([data-index]:has(> .bpk-entry.bpk-hide-row)) {
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-top-width: 0 !important;
+  border-bottom-width: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  /* The collapse must be instant even with "No animations" turned off: a
+     height transition here would animate every dropped row shut, which is
+     the flicker again, only slower. */
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ================================================================== */
+/* 11. CHAT SCROLLBAR                                                  */
+/* ================================================================== */
+
+/* chatscroll.js tags the chat scroller with this and then owns its scroll
+   position outright — see that file for why Kick's own auto-scroll has to be
+   taken away once rows are being dropped. Everything here is the visual half
+   of that: no native scrollbar, no CSS smooth-scroll (the glide is done in
+   JS and the two would compete), and no scroll chaining to the page. */
+.bpk-scroller {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scroll-behavior: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+.bpk-scroller::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* The replacement bar is position:fixed at <body> level, tracking the
+   scroller's rect — it is deliberately NOT a child of the chat, because
+   React reconciles that subtree and would drop a foreign node.
+   pointer-events stay off the track so the 12px strip never eats a click
+   meant for a message; only the thumb itself is grabbable. */
+.bpk-sbar {
+  position: fixed;
+  width: 12px;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.bpk-sbar.bpk-on,
+.bpk-sbar.bpk-drag {
+  opacity: 1;
+}
+
+/* Transparent side borders + background-clip give a 6px-wide thumb with a
+   10px grab area, the way native overlay scrollbars behave. `transform` is
+   written every frame by JS, so it must not be transitioned here. */
+.bpk-sthumb {
+  width: 10px;
+  min-height: 28px;
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: padding-box;
+  pointer-events: auto;
+  cursor: default;
+  transition: background-color 0.15s ease;
+}
+
+.bpk-sthumb:hover,
+.bpk-sbar.bpk-drag .bpk-sthumb {
+  background: rgba(255, 255, 255, 0.5);
+  background-clip: padding-box;
+}
+
+html[data-bpk-theme="on"] .bpk-sthumb:hover,
+html[data-bpk-theme="on"] .bpk-sbar.bpk-drag .bpk-sthumb {
+  background: var(--bpk-purple);
+  background-clip: padding-box;
+}
+
+/* "No animations" means no animations: the fade goes too. */
+html[data-bpk-anim="on"] .bpk-sbar,
+html[data-bpk-anim="on"] .bpk-sthumb {
+  transition: none !important;
+}
+
+/* ================================================================== */
+/* 12. DROPS / DAILY REWARDS                                           */
+/* ================================================================== */
+
+/* Two things: the chest button in the top bar that claims a daily reward,
+   and the "Drops" entry in the left sidebar.
+ *
+ * The top-bar button is icon-only — an <svg> and nothing else — so its
+ * aria-label is the only text it has, and that label is localised ("Günlük
+ * Ödülünü Al" on a Turkish account). Both languages are matched here; every
+ * other wording is caught by label in content.js, which also collapses the
+ * sidebar row's wrapper and tags it .bpk-drop-hide.
+ *
+ * "drops" and "daily" are matched, never a bare "drop": [data-testid*="drop"]
+ * would take every dropdown on the site with it. */
+html[data-bpk-drops="on"] [href*="/drops" i],
+html[data-bpk-drops="on"] [data-testid*="drops" i],
+/* Channel points: the icon-only bubbles button in the chat header and its
+   running total. Same family as the daily reward — a passive accrual counter
+   — so it rides the same toggle. It has no label and no matching class; the
+   testid is the only hook. */
+html[data-bpk-drops="on"] [data-testid*="channel-points" i],
+html[data-bpk-drops="on"] [data-testid*="channel_points" i],
+html[data-bpk-drops="on"] [data-testid*="daily-reward" i],
+html[data-bpk-drops="on"] [data-testid*="daily_reward" i],
+html[data-bpk-drops="on"] [class*="daily-reward" i],
+html[data-bpk-drops="on"] [aria-label*="daily reward" i],
+html[data-bpk-drops="on"] [aria-label*="daily drop" i],
+html[data-bpk-drops="on"] [title*="daily reward" i],
+/* Turkish, written out in both cases on purpose: the "i" flag is only
+   guaranteed to fold ASCII, and "Ö" is not ASCII — so [*="ödül" i] alone
+   cannot be relied on to match the real label, "Günlük Ödülünü Al". */
+html[data-bpk-drops="on"] [aria-label*="Ödül"],
+html[data-bpk-drops="on"] [aria-label*="ödül"],
+html[data-bpk-drops="on"] [title*="Ödül"],
+html[data-bpk-drops="on"] [title*="ödül"],
+/* Tagged by content.js from the element's own label — that is where the
+   sidebar item and its wrapper get caught. Gated like everything else so the
+   popup toggle still works without a reload. */
+html[data-bpk-drops="on"] .bpk-drop-hide {
+  display: none !important;
+}
