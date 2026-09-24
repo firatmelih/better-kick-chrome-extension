@@ -27,9 +27,9 @@
  *   - Never drop an event Kick needs for state (bans, deletes, chatroom
  *     updates). Only the cosmetic ones are listed.
  *
- * kick.css still collapses rows as a safety net: the first screenful of
- * history arrives over HTTP rather than the socket, and anything this file
- * fails to recognise has to be caught somewhere.
+ * Plain chat messages are never dropped here. "Just chat" (justchat.js)
+ * draws its own list and gets every frame through onFrame() below, so it
+ * needs no help from this file and Kick's own list is left complete.
  */
 (() => {
   'use strict';
@@ -41,99 +41,12 @@
   if (typeof NativeWS !== 'function') return;
 
   const DBG = '[Better Kick filter]';
-  const stats = { frames: 0, dropped: 0, empty: 0, events: 0, repeats: 0 };
+  const stats = { frames: 0, dropped: 0, events: 0 };
   let spying = false;
 
   // Strict 'on': an absent attribute means content.js has not run, and the
   // safe reading of "I don't know" is to filter nothing.
   const on = (attr) => document.documentElement.getAttribute(attr) === 'on';
-
-  /* ------------------------------------------------------------------ */
-  /* what counts as an empty message                                     */
-  /* ------------------------------------------------------------------ */
-
-  // Kick sends emotes as markup inside the message text, e.g.
-  // "gg [emote:37226:EZ]". Strip the markup and the unicode emoji and see
-  // whether the person actually said anything.
-  const MARKUP_RE = /\[(?:emote|emoji|sticker|gif|img)[:|][^\]]*\]/gi;
-
-  // Copy of content.js's emoji matcher — the two files share no scope, and
-  // a divergence here would mean the socket and the DOM disagree about what
-  // "empty" means.
-  const EMOJI_RE = new RegExp(
-    '[\\u{1F3FB}-\\u{1F3FF}]' +
-      '|[0-9#*]\\uFE0F?\\u20E3' +
-      '|[\\u{1F1E6}-\\u{1F1FF}]' +
-      '|\\p{Extended_Pictographic}(\\uFE0F|\\uFE0E)?' +
-      '(\\u200D\\p{Extended_Pictographic}(\\uFE0F|\\uFE0E)?)*' +
-      '|[\\uFE0F\\uFE0E\\u200D]',
-    'gu'
-  );
-
-  function spoken(content) {
-    return String(content || '')
-      .replace(MARKUP_RE, ' ')
-      .replace(EMOJI_RE, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* copypasta                                                           */
-  /* ------------------------------------------------------------------ */
-
-  // Same rule as content.js: once the exact same line has been posted 10
-  // times inside 10 minutes it is banned for the rest of the page session.
-  // Counting here rather than in the DOM means copies 11 and up never arrive
-  // at all; the ten already on screen are still collapsed by kick.css.
-  const LIMIT = 10;
-  const WINDOW_MS = 10 * 60 * 1000;
-  const MAX_KEYS = 4000;
-  const hits = new Map();
-  const banned = new Set();
-  let path = location.pathname;
-
-  function isBanned(text) {
-    if (location.pathname !== path) {
-      // Channel change: the tallies belong to one chat.
-      path = location.pathname;
-      hits.clear();
-      banned.clear();
-    }
-    const key = text.toLowerCase();
-    if (!key) return false;
-    if (banned.has(key)) return true;
-    const now = Date.now();
-    let list = hits.get(key);
-    if (!list) {
-      list = [];
-      hits.set(key, list);
-    }
-    list.push(now);
-    const cut = now - WINDOW_MS;
-    while (list.length && list[0] < cut) list.shift();
-    if (list.length >= LIMIT) {
-      hits.delete(key);
-      banned.add(key);
-      // Deliberately delivered, not dropped. content.js runs the same tally
-      // against the DOM and only sweeps the copies already on screen when it
-      // sees the tenth. Swallow that one here and its counter stops at nine
-      // forever, so the nine visible copies never go. Let it through; every
-      // copy after it is stopped at the socket.
-      return false;
-    }
-    if (hits.size > MAX_KEYS) {
-      for (const [k, v] of hits) {
-        if (!v.length || v[v.length - 1] < cut) hits.delete(k);
-      }
-      let drop = hits.size - MAX_KEYS;
-      for (const k of hits.keys()) {
-        if (drop-- <= 0) break;
-        hits.delete(k);
-      }
-    }
-    return false;
-  }
 
   /* ------------------------------------------------------------------ */
   /* which frames go                                                     */
@@ -155,32 +68,60 @@
   // A chat message's own "this is not really a message" marker.
   const EVENT_TYPE_RE = /celebration|subscription|gift|kicks|host|raid|reward/i;
 
+  // Kick's socket has spoken two dialects. The old one (Pusher) sends one
+  // event per frame: {event, data}. The current one (Centrifugo) wraps the
+  // same event in a push, {push: {channel, pub: {data: {event, data}}}}, and
+  // may batch several replies into one frame, one JSON object per line.
+  // Returns [{name, msg}] for every event found; unknown lines are skipped.
+  function eventsIn(raw) {
+    const out = [];
+    for (const lineText of raw.split('\n')) {
+      if (!lineText) continue;
+      let frame;
+      try {
+        frame = JSON.parse(lineText);
+      } catch {
+        continue; // not JSON — not ours to touch
+      }
+      const inner =
+        frame && frame.push && frame.push.pub && frame.push.pub.data
+          ? frame.push.pub.data
+          : frame;
+      const name = inner && typeof inner.event === 'string' ? inner.event : '';
+      if (!name) continue;
+      let msg = inner.data;
+      if (typeof msg === 'string') {
+        try {
+          msg = JSON.parse(msg);
+        } catch {
+          msg = null;
+        }
+      }
+      out.push({ name, msg });
+    }
+    return out;
+  }
+
+  // A frame is dropped only when every event in it is one we drop — a batch
+  // holding anything else is delivered whole.
   function dropsFrame(raw) {
     if (typeof raw !== 'string' || raw.length > 200000) return false;
-    let frame;
-    try {
-      frame = JSON.parse(raw);
-    } catch {
-      return false; // not JSON — not ours to touch
+    const events = eventsIn(raw);
+    if (!events.length) return false;
+    let drop = true;
+    for (const ev of events) {
+      if (!dropsEvent(ev.name, ev.msg)) drop = false;
     }
-    const name = frame && typeof frame.event === 'string' ? frame.event : '';
-    if (!name) return false;
+    return drop;
+  }
 
+  function dropsEvent(name, msg) {
     // Protocol internals, never content: pusher:ping, pusher:connection_
     // established, pusher_internal:subscription_succeeded. That last one
     // contains the word "subscription" and would otherwise match the sub
     // rule below — swallowing it tells the client its channel never
     // subscribed, which does not hide sub messages, it kills the chat.
     if (/^pusher/i.test(name)) return false;
-
-    let msg = frame.data;
-    if (typeof msg === 'string') {
-      try {
-        msg = JSON.parse(msg);
-      } catch {
-        msg = null;
-      }
-    }
 
     if (spying) console.log(DBG, 'frame', name, msg);
 
@@ -192,9 +133,20 @@
     try {
       if (window.__bpkLog) window.__bpkLog.record(name, msg);
     } catch (err) {
-      if (!dropsFrame.logWarned) {
-        dropsFrame.logWarned = true;
+      if (!dropsEvent.logWarned) {
+        dropsEvent.logWarned = true;
         console.warn(DBG, 'deleted-message log threw:', err);
+      }
+    }
+
+    // Just chat reads the same way and under the same rule: it only ever
+    // observes, and it sees every message, including ones dropped below.
+    try {
+      if (window.__bpkJust) window.__bpkJust.onFrame(name, msg);
+    } catch (err) {
+      if (!dropsEvent.justWarned) {
+        dropsEvent.justWarned = true;
+        console.warn(DBG, 'just chat threw:', err);
       }
     }
 
@@ -212,21 +164,6 @@
 
     if (msg.type && EVENT_TYPE_RE.test(String(msg.type)) && on('data-bpk-subs')) {
       stats.events++;
-      return true;
-    }
-
-    const text = spoken(msg.content);
-
-    if (!text) {
-      // Nothing but emotes, emoji or a gif: the row would render as a lone
-      // "username:".
-      if (!on('data-bpk-empty')) return false;
-      stats.empty++;
-      return true;
-    }
-
-    if (on('data-bpk-repeat') && isBanned(text)) {
-      stats.repeats++;
       return true;
     }
 
@@ -319,11 +256,8 @@
         {
           version: '1.4.0',
           patched: window.WebSocket === BpkWebSocket,
-          dropEmpty: on('data-bpk-empty'),
-          dropRepeats: on('data-bpk-repeat'),
           dropSubs: on('data-bpk-subs'),
-          dropPinned: on('data-bpk-pinned'),
-          bannedPhrases: banned.size
+          dropPinned: on('data-bpk-pinned')
         },
         stats
       );

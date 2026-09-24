@@ -25,6 +25,7 @@
         "src/quality.js",
         "src/browse.js",
         "src/chatlog.js",
+        "src/justchat.js",
         "src/chatfilter.js",
         "src/chatscroll.js",
         "src/diag.js"

@@ -8,107 +8,30 @@
   <body>
     <header>
       <h1>Better Kick</h1>
-      <p class="sub">Plain-text chat, no sub spam, purple theme.</p>
+      <p class="sub">Simple chat, deleted messages, purple theme.</p>
     </header>
 
     <ul class="opts">
       <li>
-        <label for="force1080">
-          <span class="t">Force 1080p</span>
-          <span class="d">Lock the player to 1080p — restored on every reload</span>
+        <label for="simpleChat">
+          <span class="t">Simple chat</span>
+          <span class="d">Just &ldquo;username: text&rdquo; &mdash; no badges, emotes or images. No sub, gift, Kicks, pinned or drops clutter, no animations.</span>
         </label>
-        <input type="checkbox" id="force1080" />
+        <input type="checkbox" id="simpleChat" />
       </li>
       <li>
-        <label for="rememberPanels">
-          <span class="t">Remember collapsed panels</span>
-          <span class="d">Sidebar and chat come back the way you left them</span>
+        <label for="showDeleted">
+          <span class="t">Show deleted messages</span>
+          <span class="d">Deleted messages stay in chat, highlighted, plus a log of who wrote and removed them</span>
         </label>
-        <input type="checkbox" id="rememberPanels" />
+        <input type="checkbox" id="showDeleted" />
       </li>
       <li>
-        <label for="rememberBrowse">
-          <span class="t">Remember browse filters</span>
-          <span class="d">Language, sort and the rest come back next time you open Browse</span>
+        <label for="rememberSettings">
+          <span class="t">Remember settings</span>
+          <span class="d">1080p quality, collapsed sidebar and chat, and browse filters come back every time</span>
         </label>
-        <input type="checkbox" id="rememberBrowse" />
-      </li>
-      <li>
-        <label for="smoothScroll">
-          <span class="t">Smooth chat scrolling</span>
-          <span class="d">Replace Kick's jumpy auto-scroll and its scrollbar with our own</span>
-        </label>
-        <input type="checkbox" id="smoothScroll" />
-      </li>
-      <li>
-        <label for="plainChat">
-          <span class="t">Plain text chat</span>
-          <span class="d">No emotes, badges, images, icons or logos</span>
-        </label>
-        <input type="checkbox" id="plainChat" />
-      </li>
-      <li>
-        <label for="stripEmoji">
-          <span class="t">Strip emoji</span>
-          <span class="d">Remove unicode emoji from message text</span>
-        </label>
-        <input type="checkbox" id="stripEmoji" />
-      </li>
-      <li>
-        <label for="removeLinks">
-          <span class="t">Delete links entirely</span>
-          <span class="d">Off = URLs stay as unclickable plain text</span>
-        </label>
-        <input type="checkbox" id="removeLinks" />
-      </li>
-      <li>
-        <label for="hideEmpty">
-          <span class="t">Drop emote-only messages</span>
-          <span class="d">If nothing but emotes/emoji was sent, hide the row</span>
-        </label>
-        <input type="checkbox" id="hideEmpty" />
-      </li>
-      <li>
-        <label for="hideRepeats">
-          <span class="t">Drop repeated messages</span>
-          <span class="d">Once a line is posted 10&times; in 10 minutes, hide it and every later copy</span>
-        </label>
-        <input type="checkbox" id="hideRepeats" />
-      </li>
-      <li>
-        <label for="deletedLog">
-          <span class="t">Deleted messages log</span>
-          <span class="d">A button by the chat cog: what was deleted, who wrote it, who removed it</span>
-        </label>
-        <input type="checkbox" id="deletedLog" />
-      </li>
-      <li>
-        <label for="hideSubs">
-          <span class="t">Kill subs, gift subs &amp; Kicks</span>
-          <span class="d">Buttons, prompts, sub/gift events and Kicks donations</span>
-        </label>
-        <input type="checkbox" id="hideSubs" />
-      </li>
-      <li>
-        <label for="hideDrops">
-          <span class="t">Hide drops &amp; daily rewards</span>
-          <span class="d">The daily-reward chest in the top bar and Drops in the sidebar</span>
-        </label>
-        <input type="checkbox" id="hideDrops" />
-      </li>
-      <li>
-        <label for="hidePinned">
-          <span class="t">Hide pinned &amp; highlights</span>
-          <span class="d">Pinned messages, celebrations, polls, raids</span>
-        </label>
-        <input type="checkbox" id="hidePinned" />
-      </li>
-      <li>
-        <label for="killAnimations">
-          <span class="t">No animations</span>
-          <span class="d">Freeze chat transitions and effects</span>
-        </label>
-        <input type="checkbox" id="killAnimations" />
+        <input type="checkbox" id="rememberSettings" />
       </li>
       <li>
         <label for="purpleTheme">
@@ -116,20 +39,6 @@
           <span class="d">Repaint Kick green as #9147ff</span>
         </label>
         <input type="checkbox" id="purpleTheme" />
-      </li>
-      <li>
-        <label for="monoUsernames">
-          <span class="t">Flat usernames</span>
-          <span class="d">One colour for every name</span>
-        </label>
-        <input type="checkbox" id="monoUsernames" />
-      </li>
-      <li>
-        <label for="hideTimestamps">
-          <span class="t">Hide timestamps</span>
-          <span class="d">Drop the time column</span>
-        </label>
-        <input type="checkbox" id="hideTimestamps" />
       </li>
     </ul>
 

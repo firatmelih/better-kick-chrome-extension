@@ -677,8 +677,12 @@
   /* ------------------------------------------------------------------ */
 
   function readFlag() {
-    const v = document.documentElement.getAttribute('data-bpk-scroll');
-    const on = v !== 'off'; // absent = on, so a missed handshake fails useful
+    const html = document.documentElement;
+    // absent = on, so a missed handshake fails useful. Just chat covers
+    // Kick's list with its own, so there is nothing here to manage then.
+    const on =
+      html.getAttribute('data-bpk-scroll') !== 'off' &&
+      html.getAttribute('data-bpk-just') !== 'on';
     if (on === enabled) return;
     enabled = on;
     if (!enabled) detach();
@@ -767,7 +771,7 @@
     document.addEventListener('click', onClick, true);
     new MutationObserver(readFlag).observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-bpk-scroll']
+      attributeFilter: ['data-bpk-scroll', 'data-bpk-just']
     });
     addEventListener('resize', () => { measureInset(); schedulePin(); });
     // The bar is position:fixed over the scroller's rect, so anything that

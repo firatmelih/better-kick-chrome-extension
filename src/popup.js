@@ -1,21 +1,8 @@
 const DEFAULTS = {
-  plainChat: true,
-  stripEmoji: true,
-  removeLinks: false,
-  hideSubs: true,
-  hideDrops: true,
-  hidePinned: true,
-  killAnimations: true,
-  purpleTheme: true,
-  monoUsernames: false,
-  hideTimestamps: false,
-  hideEmpty: true,
-  hideRepeats: true,
-  deletedLog: true,
-  force1080: true,
-  smoothScroll: true,
-  rememberBrowse: true,
-  rememberPanels: true
+  simpleChat: true,
+  showDeleted: true,
+  rememberSettings: true,
+  purpleTheme: true
 };
 
 const KEYS = Object.keys(DEFAULTS);
@@ -42,9 +29,8 @@ for (const key of KEYS) {
   if (!box) continue;
   box.addEventListener('change', () => {
     chrome.storage.sync.set({ [key]: box.checked }, () => {
-      // Hiding is pure CSS, so toggles apply live. Text already stripped from
-      // a message can only come back on reload.
-      flash(box.checked ? 'On' : 'Off — reload to restore');
+      // Every toggle is read live off <html data-bpk-*>, so no reload.
+      flash(box.checked ? 'On' : 'Off');
     });
   });
 }

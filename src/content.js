@@ -5,44 +5,48 @@
  * stamping per-node "hidden" classes) fights the framework and can crash it.
  * Instead JS only does the few things CSS cannot:
  *   1. tag chat entries / containers so CSS has a stable hook
- *   2. strip unicode emoji out of text nodes
- *   3. add the "username:" colon when Kick's own separator is gone
- *   4. hide sub / gift-sub controls that are only identifiable by their text
- *   5. repaint Kick-green computed colors into purple
+ *   2. hide sub / gift-sub controls that are only identifiable by their text
+ *   3. repaint Kick-green computed colors into purple
  *
- * Chat scrolling is not handled here at all: dropping rows desyncs Kick's
- * virtual list, and fixing that means overriding page-world code, which a
- * content script cannot reach. That lives in chatscroll.js.
+ * Plain-text chat is not done here either: "Just chat" (justchat.js) draws
+ * its own list over Kick's instead of editing Kick's rows.
  */
 (() => {
   'use strict';
 
   const PURPLE = 'rgb(145, 71, 255)';
 
-  const DEFAULTS = {
-    plainChat: true,      // no emotes, badges, images, svg in chat
-    stripEmoji: true,     // strip unicode emoji from message text
-    removeLinks: false,   // false = links stay as unclickable plain text
-    hideSubs: true,       // subscribe / gift-sub UI and sub event messages
-    hideDrops: true,      // drops / daily-reward chest, top bar and sidebar
-    hidePinned: true,     // pinned messages, highlights, celebrations
-    killAnimations: true, // no animations/transitions in chat
-    purpleTheme: true,    // purple theme instead of Kick green
-    monoUsernames: false, // force all usernames to one flat color
-    hideTimestamps: false,
-    hideEmpty: true,      // drop rows left with no text once stripping is done
-    hideRepeats: true,    // drop copypasta: same message 10x in 10 minutes
-    deletedLog: true,     // keep deleted messages readable behind a chat button
-    force1080: true,      // keep the player at 1080p, re-apply when it drops
-    smoothScroll: true,   // own chat's auto-scroll + custom scrollbar
-    rememberBrowse: true, // restore the last browse filters (language, sort)
-    rememberPanels: true  // restore the sidebar + chat collapsed state
+  // What the popup stores: four switches, each covering a group of features.
+  const SETTINGS = {
+    simpleChat: true,       // just chat, no subs/pinned/drops clutter, no animations
+    showDeleted: true,      // deleted messages stay visible + the deleted-messages log
+    rememberSettings: true, // 1080p, collapsed panels, browse filters
+    purpleTheme: true       // purple instead of Kick green
   };
+
+  // The individual features each switch turns on. Everything below reads
+  // these, not the switches.
+  function derive(g) {
+    return {
+      justChat: g.simpleChat,       // own chat list: "username: text", nothing else
+      hideSubs: g.simpleChat,       // subscribe / gift-sub UI and sub event messages
+      hideDrops: g.simpleChat,      // drops / daily-reward chest, top bar and sidebar
+      hidePinned: g.simpleChat,     // pinned messages, highlights, celebrations
+      killAnimations: g.simpleChat, // no animations/transitions in chat
+      smoothScroll: g.simpleChat,   // own auto-scroll for Kick's list (idle under just chat)
+      monoUsernames: false,         // force all usernames to one flat color
+      hideTimestamps: false,
+      deletedLog: g.showDeleted,    // deleted messages kept, highlighted, and logged
+      force1080: g.rememberSettings,      // keep the player at 1080p
+      rememberBrowse: g.rememberSettings, // restore the last browse filters (language, sort)
+      rememberPanels: g.rememberSettings, // restore the sidebar + chat collapsed state
+      purpleTheme: g.purpleTheme    // purple theme instead of Kick green
+    };
+  }
 
   // settings key -> <html> attribute that kick.css keys off of
   const FLAGS = {
-    plainChat: 'data-bpk-plain',
-    removeLinks: 'data-bpk-nolinks',
+    justChat: 'data-bpk-just',
     hideSubs: 'data-bpk-subs',
     hideDrops: 'data-bpk-drops',
     hidePinned: 'data-bpk-pinned',
@@ -50,9 +54,7 @@
     purpleTheme: 'data-bpk-theme',
     monoUsernames: 'data-bpk-mono',
     hideTimestamps: 'data-bpk-notime',
-    hideEmpty: 'data-bpk-empty',
-    hideRepeats: 'data-bpk-repeat',
-    // Read by chatscroll.js / quality.js / browse.js / chatlog.js, which run
+    // Read by justchat.js / chatscroll.js / quality.js / browse.js / chatlog.js, which run
     // in the page world and so share no variables with this script — only the
     // DOM.
     deletedLog: 'data-bpk-dellog',
@@ -61,7 +63,8 @@
     rememberBrowse: 'data-bpk-browse'
   };
 
-  let S = Object.assign({}, DEFAULTS);
+  let G = Object.assign({}, SETTINGS);
+  let S = derive(G);
 
   /* ------------------------------------------------------------------ */
   /* selectors                                                           */
@@ -180,21 +183,6 @@
     '|[\\uFE0F\\uFE0E\\u200D]';                  // stray VS / ZWJ leftovers
 
   const EMOJI_RE = new RegExp(EMOJI_SRC, 'gu');
-  const EMOJI_TEST = new RegExp(EMOJI_SRC, 'u'); // non-global: safe for .test()
-
-  function stripEmojiIn(root) {
-    if (!S.stripEmoji || !root || root.nodeType !== 1) return;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const hits = [];
-    let n;
-    while ((n = walker.nextNode())) {
-      if (n.nodeValue && EMOJI_TEST.test(n.nodeValue)) hits.push(n);
-    }
-    for (const t of hits) {
-      const next = t.nodeValue.replace(EMOJI_RE, '').replace(/[ \t]{2,}/g, ' ');
-      if (next !== t.nodeValue) t.nodeValue = next;
-    }
-  }
 
   /* ------------------------------------------------------------------ */
   /* tagging                                                             */
@@ -292,9 +280,7 @@
     for (const el of qsa(root, '.bpk-entry')) {
       if (!isRowLike(el)) {
         removeClass(el, 'bpk-entry');
-        removeClass(el, 'bpk-empty');
         removeClass(el, 'bpk-hide-row');
-        removeClass(el, 'bpk-repeat');
         clearRowFlips(el);
       }
     }
@@ -302,9 +288,7 @@
     while (p) {
       if (p.classList.contains('bpk-entry') && !isRowLike(p)) {
         removeClass(p, 'bpk-entry');
-        removeClass(p, 'bpk-empty');
         removeClass(p, 'bpk-hide-row');
-        removeClass(p, 'bpk-repeat');
         clearRowFlips(p);
       }
       p = p.parentElement;
@@ -333,18 +317,7 @@
   function processEntry(entry, immediate) {
     // One malformed row must never take down the whole scan.
     try {
-      stripEmojiIn(entry); // must run before collapseBlanks/markEmpty
-      if (S.plainChat) collapseBlanks(entry);
       markSubEvent(entry, immediate); // unconditional: must also UNmark on recycle
-      if (S.plainChat) ensureColon(entry);
-      // renderedText() walks the whole row, and both checks below need the
-      // same string, so it is computed once here rather than twice.
-      const text =
-        S.hideEmpty || S.hideRepeats
-          ? renderedText(entry).replace(TIME_PREFIX_RE, '')
-          : '';
-      markEmpty(entry, immediate, text);
-      markRepeat(entry, immediate, text);
     } catch (err) {
       if (!warned) {
         warned = true;
@@ -401,195 +374,6 @@
     }, FLIP_DEBOUNCE_MS));
   }
 
-  const MEDIA_TAGS = new Set([
-    'IMG', 'SVG', 'PICTURE', 'VIDEO', 'CANVAS', 'OBJECT', 'EMBED', 'IFRAME', 'I'
-  ]);
-  const KEEP_TAGS = new Set(['BR', 'INPUT', 'TEXTAREA', 'SELECT']);
-
-  // Text that exists for screen readers only. A badge is usually
-  // <span><img><span class="sr-only">Moderator</span></span>, so this text is
-  // invisible but still lands in textContent — which is what made badge
-  // wrappers look non-empty (leaving "_ _ _ username:") and made a row full of
-  // nothing but badges look like it had something to say.
-  // [aria-hidden="true"] is deliberately NOT here: it means hidden from screen
-  // readers, not from the screen — Kick's visible ":" separator carries it.
-  const SR_ONLY_SEL = [
-    '[class*="sr-only" i]',
-    '[class*="srOnly" i]',
-    '[class*="visually-hidden" i]',
-    '[class*="visuallyHidden" i]',
-    '[class*="screen-reader" i]',
-    '[class*="screenReader" i]',
-    '[class*="a11y" i]',
-    'title',
-    'desc'
-  ].join(',');
-
-  function isDecorative(el) {
-    if (MEDIA_TAGS.has(el.tagName.toUpperCase())) return true;
-    try {
-      return el.matches(SR_ONLY_SEL);
-    } catch {
-      return false;
-    }
-  }
-
-  // True when nothing inside this element would render as readable text.
-  // Purely structural — no class-name guessing and no layout measurement, so
-  // it can't drift with Kick's markup and can't oscillate.
-  function isCollapsible(el) {
-    if (KEEP_TAGS.has(el.tagName.toUpperCase())) return false;
-    if (isDecorative(el)) return true;
-    // A span holding only whitespace is a spacer, not decoration — keep it,
-    // otherwise "name:" and the message run together.
-    if (el.children.length === 0 && el.textContent.length > 0 && !el.textContent.trim()) {
-      return false;
-    }
-    for (const node of el.childNodes) {
-      if (node.nodeType === 3) {
-        if (node.nodeValue && node.nodeValue.trim()) return false;
-      } else if (node.nodeType === 1 && !isCollapsible(node)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  // Hiding a badge's <img> is not enough: Kick wraps each badge in a span that
-  // keeps its own width and margin, which is what leaves "_ _ _ username:".
-  // Mark the OUTERMOST element that renders no text, so the wrapper collapses
-  // with it and the reserved space goes too.
-  function collapseBlanks(entry) {
-    for (const child of entry.children) collapseFrom(child);
-  }
-
-  function collapseFrom(el) {
-    if (isCollapsible(el)) {
-      addClass(el, 'bpk-blank');
-      return; // whole subtree is gone; no need to walk into it
-    }
-    removeClass(el, 'bpk-blank');
-    for (const child of el.children) collapseFrom(child);
-  }
-
-  // Everything inside a row that is not the message itself: the username, the
-  // timestamp, and the decorations kick.css hides. Text found under any of
-  // these does not count towards "did this person actually say something".
-  const NON_MESSAGE_SEL = [
-    IDENT_SEL,
-    SR_ONLY_SEL,
-    'time',
-    '[class*="timestamp" i]',
-    '[class*="time-stamp" i]',
-    '[data-testid*="timestamp" i]',
-    // Current Kick: the timestamp span has no telling class, but its inline
-    // style toggles visibility through this variable.
-    '[style*="--chatroom-timestamps-display" i]',
-    '[data-testid*="badge" i]',
-    '[data-testid*="emote" i]',
-    '[data-testid*="sticker" i]',
-    '[data-emote-name]',
-    '[data-emote-id]',
-    '[data-emoji]',
-    '[role="img"]',
-    '[class*="emote" i]',
-    '[class*="emoji" i]',
-    '[class*="badge" i]',
-    '[class*="sticker" i]',
-    '[class*="avatar" i]',
-    '[class*="gif" i]',
-    '[class*="logo" i]',
-    '[class*="verified" i]',
-    '[class*="moderator" i]',
-    '[class*="reaction" i]',
-    '[class*="preview" i]',
-    '[class*="embed" i]'
-  ].join(',');
-
-  // True when this text is actually on screen and is not a timestamp or a
-  // decoration's label.
-  // Only ancestors strictly between the text and the row are considered. The
-  // row's own classes describe the whole row, not this text — counting them
-  // would make an already-hidden row look like it said nothing.
-  function isRenderedText(node, entry) {
-    let p = node.parentElement;
-    while (p && p !== entry) {
-      try {
-        if (p.classList.contains('bpk-blank') || p.classList.contains('bpk-hide')) {
-          return false;
-        }
-        if (p.matches(NON_MESSAGE_SEL)) return false;
-      } catch {
-        return false;
-      }
-      // With links deleted their text is not on screen either.
-      if (S.removeLinks && p.tagName === 'A') return false;
-      p = p.parentElement;
-    }
-    return true;
-  }
-
-  // Text runs from separate elements are joined with a space, so "bob" and
-  // "lol" in sibling spans read as "bob lol" and not "boblol".
-  function renderedText(entry) {
-    const walker = document.createTreeWalker(entry, NodeFilter.SHOW_TEXT);
-    const runs = [];
-    let n;
-    while ((n = walker.nextNode())) {
-      if (!n.nodeValue || !n.nodeValue.trim()) continue;
-      if (!isRenderedText(n, entry)) continue;
-      runs.push(n.nodeValue.trim());
-    }
-    return runs.join(' ').replace(/\s+/g, ' ').trim();
-  }
-
-  const TIME_PREFIX_RE = /^\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?\s*/i;
-  // A row showing one bare token and a colon is a stranded username.
-  const LONE_NAME_RE = /^[\w.\-]{1,32}\s*:\s*$/;
-
-  // A message that was nothing but emotes/emoji/gifs is blank once stripped,
-  // so the row would render as a lone "username:". Hide the whole row —
-  // fully collapsed (display:none via CSS), not just blanked, so it doesn't
-  // leave a gap. See setRowClass for why the *timing* of that collapse (not
-  // the property used) is what used to desync Kick's virtualized list.
-  function markEmpty(entry, immediate, text) {
-    if (!S.hideEmpty) {
-      setRowClass(entry, 'bpk-empty', false, immediate);
-      return;
-    }
-
-    if (!text) {
-      setRowClass(entry, 'bpk-empty', true, immediate);
-      return;
-    }
-
-    let empty = false;
-
-    // Primary rule, and the one that does not care how Kick names anything:
-    // the separator sits between the name and the message, so if the row
-    // renders a ":" with nothing after it, nothing was said. Uses the FIRST
-    // colon, so a message that itself ends in ":" still counts as text.
-    const colon = text.indexOf(':');
-    if (colon >= 0) empty = !text.slice(colon + 1).trim();
-
-    if (!empty) {
-      const ident = entry.querySelector(IDENT_SEL);
-      if (ident) {
-        // Drop the username wherever it sits, see whether anything is left.
-        const name = (ident.textContent || '').trim().replace(/:$/, '');
-        let rest = text;
-        const at = name ? rest.indexOf(name) : -1;
-        if (at >= 0) rest = rest.slice(0, at) + rest.slice(at + name.length);
-        empty = rest.replace(/[\s:]+/g, '') === '';
-      }
-    }
-
-    // Last resort for a row with no colon and no recognisable username.
-    if (!empty) empty = LONE_NAME_RE.test(text);
-
-    setRowClass(entry, 'bpk-empty', empty, immediate);
-  }
-
   // Kick renders sub/gift/Kicks events as chat rows with no user identity
   // element. Only those get text-matched, so a viewer typing "subscribe to
   // my yt" keeps their message. The class is also *removed* when the row no
@@ -608,203 +392,6 @@
       }
     }
     setRowClass(entry, 'bpk-hide-row', hide, immediate);
-  }
-
-  // Kick's ":" separator often lives in a node we hide. Re-add it via CSS
-  // ::after so the injected colon never leaks into textContent.
-  function ensureColon(entry) {
-    const ident = entry.querySelector(IDENT_SEL);
-    if (!ident) return;
-    const name = (ident.textContent || '').trim().replace(/:$/, '');
-    if (!name) return;
-    const txt = (entry.textContent || '').replace(/\s+/g, ' ');
-    if (txt.includes(name + ':') || txt.includes(name + ' :')) {
-      removeClass(ident, 'bpk-colon');
-    } else {
-      addClass(ident, 'bpk-colon');
-    }
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* repeated messages (copypasta)                                       */
-  /* ------------------------------------------------------------------ */
-
-  // Once the exact same message has been posted REPEAT_LIMIT times inside
-  // REPEAT_WINDOW_MS, that text is banned: the copies already on screen are
-  // collapsed and every later copy is collapsed on sight, for the rest of the
-  // page session. Matching is on the WHOLE message, so "crazy!" being banned
-  // does not touch "man that was crazy!" — only people parroting the exact
-  // line are dropped.
-  const REPEAT_LIMIT = 10;
-  const REPEAT_WINDOW_MS = 10 * 60 * 1000;
-  const REPEAT_MAX_KEYS = 4000; // distinct phrases tracked before pruning
-  const SEEN_MAX = 5000;        // messages remembered for double-count defence
-
-  const repeatHits = new Map();     // phrase -> timestamps inside the window
-  const bannedText = new Set();     // phrase -> collapse on sight
-  const seenIds = new Map();        // dedup id -> true (insertion ordered)
-  const seenByNode = new WeakMap(); // fallback for rows carrying no id at all
-  let repeatPath = location.pathname;
-
-  const MSG_ID_SEL =
-    '[data-chat-entry],[data-chat-id],[data-message-id],[data-chat-entry-id]';
-
-  function messageId(entry) {
-    let el = null;
-    try {
-      el = entry.matches(MSG_ID_SEL) ? entry : entry.querySelector(MSG_ID_SEL);
-    } catch {
-      return null;
-    }
-    if (!el) return null;
-    return (
-      el.getAttribute('data-chat-entry') ||
-      el.getAttribute('data-chat-id') ||
-      el.getAttribute('data-message-id') ||
-      el.getAttribute('data-chat-entry-id') ||
-      null
-    );
-  }
-
-  // The message on its own. renderedText() already drops timestamps and
-  // anything under an identity element, but Kick's ":" separator still lands
-  // in it — and on a skin where IDENT_SEL misses, so does the username.
-  // Returns "" for anything that cannot be read as "someone said something"
-  // (sub events, system notices, rows we cannot parse): those are never
-  // counted and never hidden by this feature.
-  function messageText(entry, text) {
-    if (!text) return '';
-    const ident = entry.querySelector(IDENT_SEL);
-    const name = ident ? (ident.textContent || '').trim().replace(/:$/, '') : '';
-    let stripped = text;
-    let named = false;
-    if (name) {
-      const at = stripped.indexOf(name);
-      if (at >= 0) {
-        stripped = stripped.slice(0, at) + stripped.slice(at + name.length);
-        named = true;
-      }
-    }
-    if (!named) {
-      // No identity element matched, so fall back to markEmpty's assumption
-      // that "name:" opens the row. A colon far into the line is punctuation
-      // inside a message, not a separator — such a row is not parseable here.
-      const colon = stripped.indexOf(':');
-      if (colon < 0 || colon > 32) return '';
-      stripped = stripped.slice(colon + 1);
-    }
-    return stripped.replace(/^[\s:]+/, '').trim();
-  }
-
-  function repeatKey(entry, text) {
-    const msg = messageText(entry, text);
-    if (!msg) return '';
-    return msg.toLowerCase().replace(/\s+/g, ' ').trim();
-  }
-
-  // A message must only ever be counted once, no matter how many times Kick
-  // re-renders its row or how often the row is re-examined. A real message id
-  // is unique forever, so it dedupes on its own. Failing that, Kick's list
-  // index is stable while a message stays in the list, so index+text is the
-  // next best key: it survives re-renders and scrolling, while an index that
-  // gets recycled onto a different message still counts.
-  function alreadyCounted(entry, key) {
-    const id = messageId(entry);
-    const idx = entry.getAttribute('data-index');
-    const dedup = id ? 'id:' + id : idx != null ? 'ix:' + idx + '|' + key : null;
-    if (dedup === null) {
-      if (seenByNode.get(entry) === key) return true;
-      seenByNode.set(entry, key);
-      return false;
-    }
-    if (seenIds.has(dedup)) return true;
-    seenIds.set(dedup, true);
-    if (seenIds.size > SEEN_MAX) {
-      let drop = seenIds.size - SEEN_MAX + 1000;
-      for (const k of seenIds.keys()) {
-        seenIds.delete(k);
-        if (--drop <= 0) break;
-      }
-    }
-    return false;
-  }
-
-  function countRepeat(entry, key) {
-    if (bannedText.has(key)) return; // already banned, nothing left to count
-    if (alreadyCounted(entry, key)) return;
-    const now = Date.now();
-    let hits = repeatHits.get(key);
-    if (!hits) {
-      hits = [];
-      repeatHits.set(key, hits);
-    }
-    hits.push(now);
-    const cut = now - REPEAT_WINDOW_MS;
-    while (hits.length && hits[0] < cut) hits.shift(); // rolling window
-    if (hits.length >= REPEAT_LIMIT) {
-      repeatHits.delete(key);
-      bannedText.add(key);
-      sweepRepeats(); // the copies already on screen go too
-      return;
-    }
-    if (repeatHits.size > REPEAT_MAX_KEYS) pruneRepeats(cut);
-  }
-
-  function pruneRepeats(cut) {
-    for (const [k, hits] of repeatHits) {
-      if (!hits.length || hits[hits.length - 1] < cut) repeatHits.delete(k);
-    }
-    // Still oversized: a chat busy enough to hold 4000 distinct live phrases.
-    // Drop the oldest keys — they are the ones closest to expiring anyway.
-    if (repeatHits.size > REPEAT_MAX_KEYS) {
-      let drop = repeatHits.size - REPEAT_MAX_KEYS;
-      for (const k of repeatHits.keys()) {
-        repeatHits.delete(k);
-        if (--drop <= 0) break;
-      }
-    }
-  }
-
-  // A phrase only becomes banned on its 10th copy, by which point the earlier
-  // nine are already on screen — re-evaluate every tagged row so they go too.
-  // Coalesced to one pass per frame: several phrases can tip over together.
-  let sweepScheduled = false;
-  function sweepRepeats() {
-    if (sweepScheduled) return;
-    sweepScheduled = true;
-    requestAnimationFrame(() => {
-      sweepScheduled = false;
-      for (const el of document.querySelectorAll('.bpk-entry')) {
-        // Deliberately not immediate: these rows are already painted and
-        // measured, so the collapse goes through setRowClass's debounce like
-        // every other late change.
-        scheduleScan(el, false);
-      }
-    });
-  }
-
-  function markRepeat(entry, immediate, text) {
-    if (!S.hideRepeats) {
-      setRowClass(entry, 'bpk-repeat', false, immediate);
-      return;
-    }
-    const key = repeatKey(entry, text);
-    if (!key) {
-      setRowClass(entry, 'bpk-repeat', false, immediate);
-      return;
-    }
-    countRepeat(entry, key);
-    setRowClass(entry, 'bpk-repeat', bannedText.has(key), immediate);
-  }
-
-  // Counts belong to one chat. Kick is a SPA, so switching channel keeps this
-  // script alive — the tallies have to be dropped by hand.
-  function resetRepeats() {
-    if (location.pathname === repeatPath) return;
-    repeatPath = location.pathname;
-    repeatHits.clear();
-    bannedText.clear();
-    seenIds.clear();
   }
 
   /* ------------------------------------------------------------------ */
@@ -1477,7 +1064,7 @@
   }
 
   // Our own UI (the deleted-messages button and its window) is not Kick's
-  // chat: it must not be tagged as a row, stripped of emoji or repainted.
+  // chat: it must not be tagged as a row or repainted.
   function ours(node) {
     return !!(node && node.nodeType === 1 && node.closest && node.closest('.bpk-ui'));
   }
@@ -1894,7 +1481,7 @@
       const name = parts[parts.length - 1] || '';
       return name ? ' ' + name + ' ' : ' ';
     });
-    if (S.stripEmoji) t = t.replace(EMOJI_RE, '');
+    if (S.justChat) t = t.replace(EMOJI_RE, '');
     return t.replace(/\s+/g, ' ').trim();
   }
 
@@ -2728,7 +2315,6 @@
     // Kick swaps whole panels on channel navigation; a slow sweep catches
     // anything a mutation batch missed.
     setInterval(() => {
-      resetRepeats(); // channel change: the copypasta tallies are per chat
       // Re-open every element to the repaint pass. Colours are not settled at
       // first sight — a browse card hydrates into its live state well after
       // it is inserted — so a once-only check leaves greens behind. Nothing
@@ -2776,16 +2362,18 @@
   };
 
   try {
-    chrome.storage.sync.get(DEFAULTS, (stored) => {
-      if (!chrome.runtime.lastError && stored) S = Object.assign({}, DEFAULTS, stored);
+    chrome.storage.sync.get(SETTINGS, (stored) => {
+      if (!chrome.runtime.lastError && stored) G = Object.assign({}, SETTINGS, stored);
+      S = derive(G);
       applyFlags();
       boot();
     });
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'sync') return;
       for (const [k, { newValue }] of Object.entries(changes)) {
-        if (k in S) S[k] = newValue;
+        if (k in G) G[k] = newValue;
       }
+      S = derive(G);
       applyFlags();
       // The logo and favicon swaps are href/src rewrites, not CSS rules, so
       // they are the two things a flag change cannot undo on its own.

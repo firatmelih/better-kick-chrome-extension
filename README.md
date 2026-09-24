@@ -42,11 +42,9 @@ badges, images and events are simply not there, and the text is untouched.
 
 |  | |
 |---|---|
-| 🧹 **Plain-text chat** | Emotes, emoji, badges, avatars, gifs, stickers, icons, embeds and link previews all go. What's left is `username: message`. |
-| 🕳️ **Emote-only rows vanish** | If someone sent nothing but emotes, there's no stranded `bob:` left behind — the whole row goes. |
+| 🧹 **Just chat** | Chat is `username: message` and nothing else — no badges, emotes, emoji, gifs or images. Deleted messages stay visible, highlighted; click a name to see that person's history. |
 | 🔇 **No subs, gift subs or Kicks** | Sub buttons, upsells, "X gifted 5 subs", "Y sent 500 Kicks", the top-gifter marquee, the recent-Kicks pill bar. |
 | 🗑️ **Deleted-message log** | Every message a moderator removed, kept and readable — who wrote it, what it said, who took it down and why. |
-| 🔁 **Copypasta filter** | Once a line has been posted 10× in 10 minutes, that line and every later copy stop appearing. |
 | 📌 **No pinned, polls or raids** | Pinned messages, celebrations, confetti, announcements, predictions. |
 | 🟣 **Purple theme** | Kick's `#53FC18` becomes `#9147FF` — wordmark and browser-tab favicon included. |
 | 🎞️ **Locked to 1080p** | The player stays at 1080p across reloads, channel changes and stream restarts. |
@@ -125,30 +123,12 @@ Click the extension icon. Every toggle applies live — no reload.
 
 | Option | Default | |
 |---|---|---|
-| Force 1080p | on | Locks the player to 1080p — restored on every reload |
-| Remember collapsed panels | on | Sidebar and chat come back the way you left them |
-| Remember browse filters | on | Language, sort and the rest come back next time you open Browse |
-| Smooth chat scrolling | on | Replaces Kick's auto-scroll and scrollbar with our own |
-| Plain text chat | on | Hides emotes, badges, images, icons, logos |
-| Strip emoji | on | Removes unicode emoji from message text |
-| Drop emote-only messages | on | Hides the row when nothing but emotes/emoji was sent |
-| Drop repeated messages | on | Once a line is posted 10× in 10 minutes, hides it and every later copy |
-| Deleted messages log | on | Adds the button by the chat cog |
-| Delete links entirely | **off** | See note below |
-| Kill subs, gift subs & Kicks | on | Buttons, prompts, sub/gift events, Kicks donations |
-| Hide drops & daily rewards | on | The daily-reward chest in the top bar, Drops in the sidebar |
-| Hide pinned & highlights | on | Pinned, celebrations, polls, raids |
-| No animations | on | Freezes chat transitions and effects |
+| Simple chat | on | Just `username: text` — no badges, emotes, emoji or images. Also hides subs, gift subs, Kicks, pinned messages, polls, raids, drops and daily rewards, and freezes chat animations |
+| Show deleted messages | on | Deleted messages stay in chat, highlighted, and the log button by the chat cog shows who wrote and removed them. Off: they disappear as on Kick |
+| Remember settings | on | Player locked to 1080p; collapsed sidebar and chat, and Browse filters, come back the way you left them |
 | Purple theme | on | Repaints Kick green as `#9147FF`, favicon included |
-| Flat usernames | off | One colour for every name |
-| Hide timestamps | off | Drops the time column |
 
-**About links:** by default a URL stays visible as plain, unclickable,
-uncoloured, unstyled text — it's still "plain text", just inert. Flip
-*Delete links entirely* if you'd rather the URL not appear at all.
-
-Toggling something **off** restores it live, except emoji: text already
-stripped from a message only comes back on reload.
+Every toggle applies live, no reload needed.
 
 <br clear="right" />
 
@@ -166,10 +146,9 @@ Open the console on a `kick.com` tab and type:
 | `__bpkQuality.report()` | What quality is pinned and how often it had to be re-applied. |
 | `__bpkBrowse.report()` | What browse filters are remembered. `__bpkBrowse.forget()` wipes them. |
 
-If something you *wanted* disappeared, it's almost always *Kill subs, gift subs
-& Kicks* — those selectors match on substrings like `gift`, which is the price
-of catching sub UI that gets renamed every few months. Turn it off and the rest
-keeps working.
+If something you *wanted* disappeared, it's almost always the sub/gift hiding
+in *Simple chat* — those selectors match on substrings like `gift`, which is the
+price of catching sub UI that gets renamed every few months.
 
 ---
 
@@ -180,20 +159,24 @@ it's built the way it is, and which parts of Kick's DOM it depends on.
 
 ## What it does, in detail
 
-**Chat becomes plain text.** Emotes, unicode emoji, badges, avatars, gifs,
-stickers, icons, logos, embeds and link previews are all gone. What's left is
-the username, a colon, and the message. If Kick's own `:` separator was inside
-something we hid, the extension re-adds one via CSS so the line still reads
-right.
+**Just chat draws its own list.** With *Just chat* on, Kick's message list
+is covered by one the extension draws itself (`src/justchat.js`): each line
+is the username, a colon and the message as plain text. Emotes, emoji, gifs
+and stickers are taken out of the text; a message that was nothing but those
+isn't shown at all. Links stay as plain, unclickable text. Deleted messages
+and banned users' messages stay where they were, tinted red and tagged
+*deleted*. Click a username to see everything that person has said on the
+channel since the page opened, deleted messages included.
 
-**Emote-only messages disappear completely.** If someone sent nothing but
-emotes, emoji or a gif, there's no text left to show — so the whole row is
-dropped, username included, rather than leaving a stranded `bob:` or a blank
-gap. The check is live in both directions: a row un-hides if text turns up
-later, and re-hides if the text goes away.
+This is what ended the flicker. Every earlier version edited Kick's own rows
+— hiding badges, stripping emoji, collapsing emote-only lines — and Kick's
+list is virtualised off measured row heights, so each edit changed a height
+it had already measured and it re-laid itself out. The new list is fed from
+the same data Kick uses (the chat-history request, read from a clone of the
+response, plus the live WebSocket frames) and Kick's rows are never touched;
+they're hidden with `visibility`, so Kick's layout doesn't change either.
 
-**Dropped messages are stopped at the socket, not hidden in the page.** This
-is the important one, and it's why the chat no longer flickers. Kick's
+**Sub and pinned events are stopped at the socket, not hidden in the page.** Kick's
 message list is virtualised off remembered row heights, and it cannot
 recalculate around a row that vanishes underneath it: its height model stops
 matching the DOM, every scroll position it computes from that model is wrong,
@@ -203,8 +186,7 @@ doesn't help — the list is the thing doing the moving.
 
 So the messages never reach it. Chat arrives over a WebSocket, and
 `src/chatfilter.js` intercepts those frames in the page world before Kick's
-own code is handed them: emote-only messages, banned copypasta and
-sub/gift/Kicks/pinned events are dropped there. Kick never learns they
+own code is handed them: sub/gift/Kicks/pinned events are dropped there. Kick never learns they
 existed, renders no row, and its model stays exactly right. Nothing to hide,
 nothing to recalculate, nothing to flicker.
 
@@ -494,23 +476,12 @@ attributes that the content script writes to `<html>`. `src/content.js` only
 does what CSS can't:
 
 - tag chat rows and containers so the CSS has a stable hook
-- strip unicode emoji out of text nodes
-- add the `:` when Kick's separator was hidden
 - hide sub/gift and drops controls that are only identifiable by their label
   text, and collapse the sidebar wrapper a hidden entry leaves behind
 - fetch the Kick wordmark's SVG and hand it back recoloured
-- count identical messages over a rolling 10-minute window and tag the
-  copypasta rows once a line crosses 10 posts
 - mount the deleted-messages button in the chat footer and draw its window
   from what `chatlog.js` posts over
 - repaint green computed colours to purple
-
-**About repeated messages:** matching is on the *whole* message, so banning
-`crazy!` leaves `man that was crazy!` alone — only people parroting the exact
-line get dropped. Comparison ignores case and extra spacing. Each message is
-counted once no matter how often Kick re-renders its row, and a ban lasts for
-the rest of the page session; reloading or switching channel clears the
-tallies.
 
 Hiding is done with CSS rather than by deleting nodes on purpose: Kick's chat
 is a virtualised React list that recycles DOM nodes, and node surgery there

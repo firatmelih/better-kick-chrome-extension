@@ -22,211 +22,200 @@
 }
 
 /* ================================================================== */
-/* 1. PLAIN TEXT CHAT                                                  */
+/* 1. JUST CHAT                                                        */
 /* ================================================================== */
 
-/* Everything non-textual inside a chat line: emotes, badges, avatars,
-   gifs, stickers, svg icons, embeds, reaction art. */
-html[data-bpk-plain="on"] .bpk-entry img,
-html[data-bpk-plain="on"] .bpk-entry svg,
-html[data-bpk-plain="on"] .bpk-entry picture,
-html[data-bpk-plain="on"] .bpk-entry video,
-html[data-bpk-plain="on"] .bpk-entry canvas,
-html[data-bpk-plain="on"] .bpk-entry iframe,
-html[data-bpk-plain="on"] .bpk-entry object,
-html[data-bpk-plain="on"] .bpk-entry embed,
-html[data-bpk-plain="on"] .bpk-entry figure,
-html[data-bpk-plain="on"] .bpk-entry [role="img"],
-html[data-bpk-plain="on"] .bpk-entry [data-emote-name],
-html[data-bpk-plain="on"] .bpk-entry [data-emote-id],
-html[data-bpk-plain="on"] .bpk-entry [data-emoji],
-html[data-bpk-plain="on"] .bpk-entry [class*="emote" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="emoji" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="badge" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="sticker" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="avatar" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="gif" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="icon" i]:empty,
-html[data-bpk-plain="on"] .bpk-entry [class*="logo" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="verified" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="moderator" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="og-badge" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="reaction" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="preview" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="embed" i],
-html[data-bpk-plain="on"] .bpk-entry [data-testid*="badge" i],
-html[data-bpk-plain="on"] .bpk-entry [data-testid*="emote" i],
-html[data-bpk-plain="on"] .bpk-entry [data-testid*="sticker" i] {
-  display: none !important;
+/* Kick's own message list is never edited, only covered. justchat.js puts
+   #bpk-justchat — its own list of "username: text" lines — over the box
+   that holds #chatroom-messages, and everything else in that box (Kick's
+   rows, the pinned message, the "new messages" chip) is hidden with
+   visibility, which leaves Kick's layout and virtual list exactly as they
+   were. Nothing about a Kick row ever changes, so nothing can flicker. */
+html[data-bpk-just="on"] :has(> #chatroom-messages) > :not(#bpk-justchat, #bpk-jc-user) {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-/* Same hide list keyed on the page itself instead of JS tagging, so plain
-   chat still holds if row detection ever misses. Current Kick (2025+) rows
-   are [data-index] wrappers whose body carries an inline
-   "font-size: var(--chatroom-font-size)" style, and the list keeps its
-   #chatroom-messages id. Badges are div[data-testid="identity-badge-*"]
-   wrappers around an svg — hiding only the svg leaves the wrapper's
-   size-[...] box behind as a gap, so the wrapper itself must go.
-   (:is() ignores the :has() member on engines without :has support.) */
-html[data-bpk-plain="on"]
-  :is(#chatroom-messages,
-      [data-index][style*="--chatroom-font-size"],
-      [data-index]:has([style*="--chatroom-font-size"]))
-  :is(img, svg, picture, video, canvas, iframe, object, embed, figure,
-      [role="img"], [data-emote-name], [data-emote-id], [data-emoji],
-      [data-testid*="badge" i], [data-testid*="emote" i],
-      [data-testid*="sticker" i],
-      [class*="emote" i], [class*="emoji" i], [class*="badge" i],
-      [class*="sticker" i], [class*="avatar" i], [class*="gif" i],
-      [class*="logo" i], [class*="verified" i], [class*="moderator" i],
-      [class*="reaction" i], [class*="preview" i], [class*="embed" i]) {
-  display: none !important;
+#bpk-justchat {
+  display: none;
 }
 
-/* The badge GROUP (div.flex.gap-1.pr-1 holding the badge wrappers) keeps its
-   own gap and padding once the badges inside are hidden. The JS blank-collapse
-   removes it too, but this closes the gap even before JS has run. Subscriber
-   badges are a bare <img> from the badge CDN with no data-testid at all, so
-   the structural div[data-state]>img shape is matched as well. Guarded so a
-   group that also holds the username button or a link is never touched. */
-html[data-bpk-plain="on"]
-  :is(.bpk-entry, #chatroom-messages, [data-index][style*="--chatroom-font-size"])
-  div:is(:has(> [data-testid*="identity-badge" i]),
-         :has(> [data-state] img),
-         :has(> div [data-state] img)):not(:has(button, a, input, textarea)) {
-  display: none !important;
+html[data-bpk-just="on"] #bpk-justchat {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 0;
+  background: var(--bpk-bg-alt);
+  color: var(--bpk-text);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
-/* Badge art itself, keyed on Kick's CDN paths — works with zero JS. */
-html[data-bpk-plain="on"] img[src*="/badges/" i],
-html[data-bpk-plain="on"] .bpk-entry img[src*="/emotes/" i],
-html[data-bpk-plain="on"] #chatroom-messages img[src*="/emotes/" i] {
-  display: none !important;
+#bpk-justchat .bpk-jc-line {
+  padding: 2px 10px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
-/* Flatten the line itself: no card, no border, no tint, no shadow. */
-html[data-bpk-plain="on"] .bpk-entry {
-  background: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  outline: none !important;
-  text-shadow: none !important;
-  padding: 2px 10px !important;
-  margin: 0 !important;
-  min-height: 0 !important;
-  font-weight: 400 !important;
-  font-style: normal !important;
-  letter-spacing: normal !important;
-  text-transform: none !important;
-  line-height: 1.45 !important;
-  color: var(--bpk-text) !important;
+#bpk-justchat .bpk-jc-name {
+  font-weight: 700;
+  cursor: pointer;
 }
 
-html[data-bpk-plain="on"] .bpk-entry *:not(.bpk-hide) {
-  background: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  text-shadow: none !important;
-  font-style: normal !important;
-  text-transform: none !important;
-  letter-spacing: normal !important;
+#bpk-justchat .bpk-jc-name:hover {
+  text-decoration: underline;
 }
 
-/* Username stays bold so the line still parses at a glance. */
-html[data-bpk-plain="on"] .bpk-entry .chat-entry-username,
-html[data-bpk-plain="on"] .bpk-entry [class*="identity" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="username" i] {
-  font-weight: 700 !important;
-  cursor: default !important;
+/* A deleted message stays where it was, tinted red and labelled, so nothing
+   moves and it can still be read. */
+:is(#bpk-justchat, #bpk-jc-user) .bpk-jc-deleted {
+  background: rgba(235, 64, 52, 0.16);
+  box-shadow: inset 3px 0 0 #eb4034;
 }
 
-/* Anything in a row that renders no text — badge wrappers, emote containers,
-   avatar slots — collapses completely. Hiding only the inner <img> would leave
-   the wrapper's width and margin behind as "_ _ _ username:". */
-html[data-bpk-plain="on"] .bpk-entry .bpk-blank {
-  display: none !important;
+/* With "Show deleted messages" off they simply go, as they do on Kick. */
+html[data-bpk-dellog="off"] :is(#bpk-justchat, #bpk-jc-user) .bpk-jc-deleted {
+  display: none;
 }
 
-/* Same idea, for leaf decorations styled purely with CSS (background-image,
-   fixed width) and no children at all. :empty ignores whitespace-only spans,
-   which are real spacers and must survive. */
-html[data-bpk-plain="on"] .bpk-entry *:empty:not(br):not(input):not(textarea) {
-  display: none !important;
+:is(#bpk-justchat, #bpk-jc-user) .bpk-jc-deleted::after {
+  content: "deleted";
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #eb4034;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: 1px;
 }
 
-/* Nothing in a plain-text row should reserve space for art that is gone. */
-html[data-bpk-plain="on"] .bpk-entry [class*="badge" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="emote" i],
-html[data-bpk-plain="on"] .bpk-entry [class*="avatar" i] {
-  margin: 0 !important;
-  padding: 0 !important;
-  width: 0 !important;
-  min-width: 0 !important;
+/* One user's history, opened by clicking their name. Sits over the bottom
+   of the chat so the conversation stays visible above it. */
+#bpk-jc-user {
+  display: none;
 }
 
-/* A row whose message was nothing but emotes/emoji/gifs has no text left, so
-   the username would sit there alone: content.js tags it .bpk-empty and it
-   goes. Copypasta rows (.bpk-repeat) and sub/gift/Kicks event rows
-   (.bpk-hide-row) go the same way. All three are collapsed by ONE rule, in
-   section 10 — how a chat row is removed is the single most delicate thing
-   in this file and it must not drift between the three cases. */
+html[data-bpk-just="on"] #bpk-jc-user {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  max-height: 60%;
+  background: var(--bpk-bg-elev);
+  border-top: 1px solid var(--bpk-border);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  color: var(--bpk-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
 
-/* Injected ":" for when Kick's own separator node was one of the ones we hid.
-   Lives in ::after so it never shows up in textContent. */
-html[data-bpk-plain="on"] .bpk-colon::after {
-  content: ":";
+#bpk-jc-user .bpk-jc-user-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--bpk-border);
+}
+
+#bpk-jc-user .bpk-jc-name {
+  font-weight: 700;
+}
+
+#bpk-jc-user .bpk-jc-user-count {
+  color: var(--bpk-text-dim);
+  font-size: 12px;
+}
+
+#bpk-jc-user .bpk-jc-user-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bpk-text-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#bpk-jc-user .bpk-jc-user-close:hover {
+  background: var(--bpk-border);
+  color: var(--bpk-text);
+}
+
+#bpk-jc-user .bpk-jc-user-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0;
+}
+
+#bpk-jc-user .bpk-jc-line {
+  padding: 2px 10px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+#bpk-jc-user .bpk-jc-time {
+  margin-right: 8px;
+  color: var(--bpk-text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#bpk-jc-user .bpk-jc-user-empty {
+  padding: 8px 10px;
   color: var(--bpk-text-dim);
 }
 
-/* Chat input side: emote picker, gif picker, sticker tray. */
-html[data-bpk-plain="on"] .bpk-chatroom [class*="emote-picker" i],
-html[data-bpk-plain="on"] .bpk-chatroom [class*="emoji-picker" i],
-html[data-bpk-plain="on"] .bpk-chatroom [class*="gif-picker" i],
-html[data-bpk-plain="on"] .bpk-chatroom [class*="sticker" i],
-html[data-bpk-plain="on"] [data-testid*="emote" i],
-html[data-bpk-plain="on"] [data-testid*="emoji" i],
-html[data-bpk-plain="on"] [aria-label*="emote" i],
-html[data-bpk-plain="on"] [aria-label*="emoji" i],
-html[data-bpk-plain="on"] [aria-label*="gif" i] {
+html[data-bpk-mono="on"] :is(#bpk-justchat, #bpk-jc-user) .bpk-jc-name {
+  color: var(--bpk-text) !important;
+}
+
+#bpk-justchat .bpk-jc-more {
+  position: sticky;
+  bottom: 4px;
+  display: none;
+  margin: 0 auto;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bpk-bg-elev);
+  color: var(--bpk-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#bpk-justchat.bpk-jc-paused .bpk-jc-more {
+  display: block;
+}
+
+/* The input side: emote picker, gif picker, stickers, quick-emote strip. */
+html[data-bpk-just="on"] .bpk-chatroom [class*="emote-picker" i],
+html[data-bpk-just="on"] .bpk-chatroom [class*="emoji-picker" i],
+html[data-bpk-just="on"] .bpk-chatroom [class*="gif-picker" i],
+html[data-bpk-just="on"] .bpk-chatroom [class*="sticker" i],
+html[data-bpk-just="on"] [data-testid*="emote" i],
+html[data-bpk-just="on"] [data-testid*="emoji" i],
+html[data-bpk-just="on"] [aria-label*="emote" i],
+html[data-bpk-just="on"] [aria-label*="emoji" i],
+html[data-bpk-just="on"] [aria-label*="gif" i],
+html[data-bpk-just="on"] #quick-emotes-holder,
+html[data-bpk-just="on"] [id*="quick-emote" i] {
   display: none !important;
 }
 
-/* Kick's quick-emote strip above the chat input: a row of one-click emote
-   buttons (#quick-emotes-holder), which is the exact thing plain-text mode
-   exists to remove. Its height is set inline on the holder, so nothing short
-   of display:none closes it. The strip sits alone inside a flex column that
-   carries its own gap and bottom padding, and that column would stay behind
-   as a thin bar — the :has() rule drops it too, but only while the strip is
-   the only thing it holds, so a future sibling there is never swallowed. */
-html[data-bpk-plain="on"] #quick-emotes-holder,
-html[data-bpk-plain="on"] [id*="quick-emote" i] {
-  display: none !important;
-}
-
-html[data-bpk-plain="on"]
+html[data-bpk-just="on"]
   :is(div:has(> #quick-emotes-holder):not(:has(> :not(#quick-emotes-holder)))) {
-  display: none !important;
-}
-
-/* ================================================================== */
-/* 2. LINKS                                                            */
-/* ================================================================== */
-
-/* Default: keep the URL readable but strip everything link-ish about it —
-   not clickable, not coloured, no underline, no unfurl/preview. */
-html[data-bpk-plain="on"] .bpk-entry a {
-  color: inherit !important;
-  text-decoration: none !important;
-  pointer-events: none !important;
-  cursor: default !important;
-  font-weight: inherit !important;
-}
-
-/* Opt-in: drop link text entirely. */
-html[data-bpk-nolinks="on"] .bpk-entry a {
   display: none !important;
 }
 
@@ -629,8 +618,6 @@ html[data-bpk-qwork="on"] [data-radix-menu-content] {
  * See also content.js setRowClass(): a row's first-ever tagging applies
  * instantly, but re-tagging an already-painted row waits until the verdict
  * holds steady, so Kick's own attribute churn can't flap this on and off. */
-html[data-bpk-empty="on"] .bpk-entry.bpk-empty,
-html[data-bpk-repeat="on"] .bpk-entry.bpk-repeat,
 html[data-bpk-subs="on"] .bpk-entry.bpk-hide-row {
   height: 0 !important;
   min-height: 0 !important;
@@ -656,8 +643,6 @@ html[data-bpk-subs="on"] .bpk-entry.bpk-hide-row {
    — otherwise its padding survives as a thin stripe and, worse, its
    measured height never changes. Wrapped in :is() so engines without :has()
    drop just this rule rather than the whole list above. */
-html[data-bpk-empty="on"] :is([data-index]:has(> .bpk-entry.bpk-empty)),
-html[data-bpk-repeat="on"] :is([data-index]:has(> .bpk-entry.bpk-repeat)),
 html[data-bpk-subs="on"] :is([data-index]:has(> .bpk-entry.bpk-hide-row)) {
   height: 0 !important;
   min-height: 0 !important;
