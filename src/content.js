@@ -1,4 +1,4 @@
-/* Better Kick — content script
+/* Simple Chat for Kick — content script
  *
  * Design note: almost all *hiding* is done by kick.css, not by this script.
  * Kick's chat is a React list that recycles DOM nodes, so deleting nodes (or
@@ -321,7 +321,7 @@
     } catch (err) {
       if (!warned) {
         warned = true;
-        console.warn('[Better Kick] row processing failed:', err, entry);
+        console.warn('[Simple Chat for Kick] row processing failed:', err, entry);
       }
     }
   }
@@ -1227,7 +1227,7 @@
   // trigger, which is the leading suspect for why nothing happened before.
   // qClick() below always fires the full pointerdown -> mousedown -> (wait)
   // -> pointerup -> mouseup -> click sequence so it works either way.
-  const QDEBUG = '[Better Kick 1080p]';
+  const QDEBUG = '[Simple Chat for Kick 1080p]';
   const qAttempts = new Map(); // stream key -> { tries, last, gaveUp }
   let qBusy = false;
 
@@ -1564,7 +1564,7 @@
     // answered from the console without any DOM archaeology.
     if (mountNoted !== how) {
       mountNoted = how;
-      console.debug('[Better Kick log] deleted-messages button mount:', how);
+      console.debug('[Simple Chat for Kick log] deleted-messages button mount:', how);
     }
   }
 
@@ -1654,7 +1654,7 @@
     btn.type = 'button'; // the footer is a form — a default button would submit it
     btn.className = 'bpk-ui bpk-log-btn';
     btn.setAttribute('aria-label', 'Deleted messages');
-    btn.title = 'Deleted messages (Better Kick)';
+    btn.title = 'Deleted messages (Simple Chat for Kick)';
     btn.appendChild(
       svgIcon(['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 14h10l1-14', 'M10 10v7', 'M14 10v7'], 18)
     );
@@ -2217,7 +2217,7 @@
         if (Math.abs(after[p.key] - before[p.key]) < PANEL_MIN_DELTA) continue;
         store[p.key] = { sig, width: after[p.key], misses: 0 };
         learned = true;
-        console.debug('[Better Kick panels] learned', p.key, sig, after[p.key] + 'px');
+        console.debug('[Simple Chat for Kick panels] learned', p.key, sig, after[p.key] + 'px');
       }
       if (learned) savePanels(store);
     }, PANEL_SETTLE_MS);
@@ -2254,13 +2254,13 @@
         const s = loadPanels();
         delete s[p.key];
         savePanels(s);
-        console.debug('[Better Kick panels] forgot', p.key, '— its toggle now resolves to a link');
+        console.debug('[Simple Chat for Kick panels] forgot', p.key, '— its toggle now resolves to a link');
         continue;
       }
 
       panelRestoreClicks++;
       const fromUrl = location.href;
-      console.debug('[Better Kick panels] restoring', p.key, 'to', mem.width + 'px', 'via', mem.sig);
+      console.debug('[Simple Chat for Kick panels] restoring', p.key, 'to', mem.width + 'px', 'via', mem.sig);
       qClick(btn);
 
       setTimeout(() => {
@@ -2271,7 +2271,7 @@
         if (location.href !== fromUrl) {
           delete fresh[p.key];
           savePanels(fresh);
-          console.debug('[Better Kick panels] forgot', p.key, '— clicking it navigated');
+          console.debug('[Simple Chat for Kick panels] forgot', p.key, '— clicking it navigated');
           return;
         }
         const after = panelWidth(p.find());
@@ -2286,7 +2286,7 @@
         fresh[p.key].misses = (fresh[p.key].misses || 0) + 1;
         if (fresh[p.key].misses >= 2) {
           delete fresh[p.key];
-          console.debug('[Better Kick panels] forgot', p.key, '— its toggle no longer works');
+          console.debug('[Simple Chat for Kick panels] forgot', p.key, '— its toggle no longer works');
         }
         savePanels(fresh);
       }, PANEL_SETTLE_MS * 2);

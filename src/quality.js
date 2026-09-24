@@ -1,4 +1,4 @@
-/* Better Kick — quality lock.
+/* Simple Chat for Kick — quality lock.
  *
  * Runs in the PAGE world (manifest "world": "MAIN") at document_start, before
  * Kick's own bundle boots.
@@ -25,7 +25,7 @@
 
   if (window.__bpkQuality) return;
 
-  const DBG = '[Better Kick quality]';
+  const DBG = '[Simple Chat for Kick quality]';
 
   // Kick's own key, plus the near variants it might rename to. Anchored at
   // the end on purpose: a loose /quality/i would also swallow keys like

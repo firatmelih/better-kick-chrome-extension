@@ -1,4 +1,4 @@
-/* Better Kick — diagnostics.
+/* Simple Chat for Kick — diagnostics.
  *
  * Page world, because that is the console you get when you hit F12 on
  * kick.com: anything content.js exposes lives in the isolated world and
@@ -78,7 +78,7 @@
     }
     const found = greens(typeof limit === 'number' ? limit : 30);
 
-    console.log('=== Better Kick diagnostics ===');
+    console.log('=== Simple Chat for Kick diagnostics ===');
     console.log('url        ', location.pathname + location.search);
     console.log('scripts    ', {
       quality: !!window.__bpkQuality,

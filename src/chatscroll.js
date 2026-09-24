@@ -1,4 +1,4 @@
-/* Better Kick — chat scroll manager.
+/* Simple Chat for Kick — chat scroll manager.
  *
  * Runs in the PAGE world (manifest "world": "MAIN"), unlike content.js.
  * That is not a style choice: a content script gets its own JS wrappers for
@@ -40,7 +40,7 @@
   };
   if (!NAT.top || !NAT.top.get || !NAT.top.set) return; // nothing to stand on
 
-  const DBG = '[Better Kick scroll]';
+  const DBG = '[Simple Chat for Kick scroll]';
   const FOLLOW_SLOP = 28;   // px from the bottom that still counts as "pinned"
   const SNAP_SLOP = 8;      // this close to the real end == the real end
   const WHEEL_MS = 170;     // wheel notch glide

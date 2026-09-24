@@ -1,4 +1,4 @@
-/* Better Kick — browse filter memory.
+/* Simple Chat for Kick — browse filter memory.
  *
  * Runs in the PAGE world (manifest "world": "MAIN") at document_start, before
  * Kick's own bundle boots. That timing is the whole trick: Kick's browse page
@@ -30,7 +30,7 @@
 
   if (window.__bpkBrowse) return;
 
-  const DBG = '[Better Kick browse]';
+  const DBG = '[Simple Chat for Kick browse]';
   const STORE_KEY = 'bpk_browse_filters';   // localStorage: path -> '?a=b'
   const GUARD_KEY = 'bpk_browse_restored';  // sessionStorage: loop breaker
   const GUARD_MS = 6000;

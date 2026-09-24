@@ -1,5 +1,5 @@
 ! ===================================================================
-! Better Kick — uBlock Origin filters
+! Simple Chat for Kick — uBlock Origin filters
 ! Paste into: uBO dashboard (puzzle icon) -> My filters -> Apply changes
 !
 ! These work on their own; you do not need the extension for them.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Better Kick",
-  "version": "1.0.0",
+  "name": "Simple Chat for Kick",
+  "version": "1.0.1",
   "description": "Plain-text Kick chat — no emotes, badges, gifs or sub spam. Read back deleted messages. Purple theme, player locked to 1080p.",
   "icons": {
     "16": "icons/icon16.png",
@@ -36,7 +36,7 @@
     }
   ],
   "action": {
-    "default_title": "Better Kick",
+    "default_title": "Simple Chat for Kick",
     "default_popup": "src/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

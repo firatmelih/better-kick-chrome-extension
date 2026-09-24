@@ -1,4 +1,4 @@
-/* Better Kick — all hiding + theming lives here.
+/* Simple Chat for Kick — all hiding + theming lives here.
  * Every rule is gated on an attribute that content.js writes to <html>,
  * so each feature can be toggled from the popup without a reload.
  * Hiding is done with CSS instead of DOM removal because Kick's chat list

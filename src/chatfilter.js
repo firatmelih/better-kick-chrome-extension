@@ -1,4 +1,4 @@
-/* Better Kick — chat message filter.
+/* Simple Chat for Kick — chat message filter.
  *
  * Runs in the PAGE world at document_start, before any of Kick's own code.
  *
@@ -40,7 +40,7 @@
   const NativeWS = window.WebSocket;
   if (typeof NativeWS !== 'function') return;
 
-  const DBG = '[Better Kick filter]';
+  const DBG = '[Simple Chat for Kick filter]';
   const stats = { frames: 0, dropped: 0, events: 0 };
   let spying = false;
 

@@ -1,4 +1,4 @@
-/* Better Kick — "Just chat".
+/* Simple Chat for Kick — "Just chat".
  *
  * Runs in the PAGE world at document_start, next to chatfilter.js.
  *
@@ -30,7 +30,7 @@
 
   if (window.__bpkJust) return;
 
-  const DBG = '[Better Kick just chat]';
+  const DBG = '[Simple Chat for Kick just chat]';
   const MAX = 300;          // lines kept while following the bottom
   const MAX_PAUSED = 1000;  // lines kept while scrolled up reading
   const STICK_PX = 30;      // this close to the bottom counts as following

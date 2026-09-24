@@ -1,4 +1,4 @@
-/* Better Kick — deleted-message log.
+/* Simple Chat for Kick — deleted-message log.
  *
  * Page world, document_start, alongside chatfilter.js — for the same reason
  * that file exists: a deleted message is gone from the DOM before anyone can
@@ -35,7 +35,7 @@
 
   if (window.__bpkLog) return;
 
-  const DBG = '[Better Kick log]';
+  const DBG = '[Simple Chat for Kick log]';
 
   // Every message on screen and a good deal of scrollback: the cache only has
   // to outlive the gap between a message and its deletion.

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Better Kick
+# Simple Chat for Kick
 
 **Kick.com chat, stripped down to `username: text`.**
 
@@ -19,7 +19,7 @@ Just what people actually said — plus a log of everything the moderators delet
 
 The same forty seconds of the same chat, with and without the extension.
 
-![Kick chat before and after Better Kick](docs/images/chat-before-after.png)
+![Kick chat before and after Simple Chat for Kick](docs/images/chat-before-after.png)
 
 **On the left**, roughly four real sentences make it to screen. Everything else is
 a pinned banner, a Kicks leaderboard, two sub events, a gift-sub event, a wall of
@@ -119,7 +119,7 @@ server and collects nothing.
 
 Click the extension icon. Every toggle applies live — no reload.
 
-<img src="docs/images/popup.png" alt="The Better Kick options popup" width="330" align="right" />
+<img src="docs/images/popup.png" alt="The Simple Chat for Kick options popup" width="330" align="right" />
 
 | Option | Default | |
 |---|---|---|
